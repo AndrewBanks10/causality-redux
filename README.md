@@ -12,6 +12,7 @@ Causality-redux is an extension to redux that significantly reduces redux and re
 - React PropType definitions are not needed because causality-redux does all of the type checking of arguments and automatically validates functions that are set to props in react components.
 - Business logic functions do not need to be passed down the react UI tree as props. A react component simply binds to a changer string name that causes a state change in which business logic subscribes to the change and implements the causality chain. So a react component can be a fully functional business logic/UI unit without any dependencies on the containing react UI tree.
 - UI components do not need to import business logic functions or reference them since the components bind to changer string names instead of business functions. So, neither the business logic nor the UI components need to import anything about the other.
+- Causality-redux is very small only 4K gzipped.
 
 If you are using react, see [Github react-causality-redux](https://github.com/AndrewBanks10/react-causality-redux) for the react extension to causality-redux.
 
