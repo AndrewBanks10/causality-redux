@@ -21,14 +21,28 @@ If you are using react, see [Github react-causality-redux](https://github.com/An
 You can find documentation at <https://cazec.com/causalityredux/causalityredux.html>
 
 ## Demos with source code.
-- [General Demo](https://cazec.com/causalityredux/causalityreduxdemo.html)
-- Todo Demo - React demo that provides the same functionality as 100 redux lines of code in just 8 lines. [Todo Demo](https://cazec.com/causalityredux/todo.htm)
-- Counter Demo - Show a counter example and also how to access external business logic without any import of the business functions or injecting react props from the top down. [Counter Demo](https://cazec.com/causalityredux/countertest.html)
+- [General Demo](https://cazec.com/causalityredux/causalityreduxdemo.html) - Demonstates general features of react-causality-redux.
+- [Todo Demo](https://cazec.com/causalityredux/todo.htm) - React demo that provides the same functionality as 100 redux lines of code in just 8 lines. 
+- [Counter Demo](https://cazec.com/causalityredux/countertest.html) - Show a counter example and also how to access external business logic without any import of the business functions or injecting react props from the top down.
 
 ## NPM links
 
 [npm causality-redux](https://www.npmjs.com/package/causality-redux)
 
-[npm react-causality-redux](https://www.npmjs.com/package/react-causality-redux)
+[npm causality-redux react extension](https://www.npmjs.com/package/react-causality-redux)
+
+## Github links
+
+[Github causality-redux](https://github.com/AndrewBanks10/causality-redux)
+
+[Github causality-redux react extension](https://github.com/AndrewBanks10/react-causality-redux)
+
+# VS Code template for developing with react and causality-redux that supports debugging and hot re-loading on a file save.
+
+[Github causality-redux react vscode hot loading/debug template]https://github.com/AndrewBanks10/react-causality-redux-vscode-template
+
+
+
+
 
 
