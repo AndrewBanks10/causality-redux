@@ -39,7 +39,7 @@ You can find documentation at <https://cazec.com/causalityredux/causalityredux.h
 
 ### VS Code template for developing with react and causality-redux that supports debugging and hot re-loading on a file save.
 
-[Github causality-redux react vscode hot loading and debug template]https://github.com/AndrewBanks10/react-causality-redux-vscode-template
+[Github causality-redux react vscode hot loading and debug template](https://github.com/AndrewBanks10/react-causality-redux-vscode-template)
 
 
 
