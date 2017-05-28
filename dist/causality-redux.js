@@ -81,9 +81,7 @@ module.exports = Redux;
 
 var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; }; /** @preserve © 2017 Andrew Banks ALL RIGHTS RESERVED */
 
-/**
- * @constructor
- */
+/*eslint no-undef: ["error", { "typeof": false }] */
 
 var _redux = __webpack_require__(0);
 
@@ -137,12 +135,13 @@ var CausalityRedux = function () {
         createReduxStore = _redux.createStore;
     }
 
+    /*eslint-disable */
     if ((typeof createReduxStore === 'undefined' ? 'undefined' : _typeof(createReduxStore)) === undefinedString) {
-        if ((typeof Redux === 'undefined' ? 'undefined' : _typeof(Redux)) === undefinedString) {
-            error('Redux is undefined');
-        }
-        createReduxStore = Redux.createStore;
+        if ((typeof Redux === 'undefined' ? 'undefined' : _typeof(Redux)) !== undefinedString) {
+            createReduxStore = Redux.createStore;
+        } else error('Redux is undefined');
     }
+    /*eslint-enable */
 
     var objectType = function objectType(obj) {
         return Object.prototype.toString.call(obj).slice(8, -1);
@@ -648,8 +647,8 @@ var CausalityRedux = function () {
 
         var newObj = {};
         if ((typeof preloadedState === 'undefined' ? 'undefined' : _typeof(preloadedState)) !== undefinedString) {
-            var defaultStateKeys = Object.keys(_defaultState);
-            defaultStateKeys.forEach(function (key) {
+            var stateKeys = [].concat(_toConsumableArray(Object.keys(_defaultState)), _toConsumableArray(Object.keys(preloadedState)));
+            stateKeys.forEach(function (key) {
                 newObj[key] = _merge({}, _defaultState[key], preloadedState[key]);
             });
         } else newObj = undefined;
@@ -688,9 +687,13 @@ var CausalityRedux = function () {
             return _store;
         },
         addPartitions: function addPartitions(partitionDefinitions) {
-            if (_store !== null) error('CausalityRedux has already been initialized. This addPartition will not work.');
             if (!Array.isArray(partitionDefinitions)) partitionDefinitions = [partitionDefinitions];
-            _partitionDefinitions = _partitionDefinitions.concat(partitionDefinitions);
+            if (_store !== null) {
+                partitionDefinitions.forEach(function (entry) {
+                    _defaultState[entry.partitionName] = _merge({}, entry.defaultState);
+                    addPartitionInternal(entry);
+                });
+            } else _partitionDefinitions = _partitionDefinitions.concat(partitionDefinitions);
         },
         subscribe: function subscribe(partitionName, listener, arrKeys, listenerName) {
             if (typeof listener !== 'function') error('subscribe listener argument is not a function.');

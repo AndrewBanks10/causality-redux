@@ -1,8 +1,6 @@
 ﻿/** @preserve © 2017 Andrew Banks ALL RIGHTS RESERVED */
 
-/**
- * @constructor
- */
+/*eslint no-undef: ["error", { "typeof": false }] */
 
 import { createStore } from 'redux'
 
@@ -70,13 +68,15 @@ const CausalityRedux = (function () {
         createReduxStore = createStore;
     }
 
+    /*eslint-disable */    
     if ( typeof createReduxStore === undefinedString ) {
-        if ( typeof Redux === undefinedString ) {
+        if ( typeof Redux !== undefinedString ) {
+            createReduxStore = Redux.createStore; 
+        } else
             error('Redux is undefined');
-        }
-        createReduxStore = Redux.createStore;
     }
-
+    /*eslint-enable */
+    
     const objectType = (obj) => Object.prototype.toString.call(obj).slice(8, -1);
     
 	function _shallowEqual(objA, objB) {
@@ -607,8 +607,8 @@ const CausalityRedux = (function () {
 
         let newObj = {};
         if ( typeof preloadedState !== undefinedString ) {
-            const defaultStateKeys = Object.keys(_defaultState);
-            defaultStateKeys.forEach( key => {
+            const stateKeys = [...Object.keys(_defaultState), ...Object.keys(preloadedState)];
+            stateKeys.forEach( key => {
                 newObj[key] = _merge({}, _defaultState[key], preloadedState[key]);
             });
         } else
@@ -642,11 +642,15 @@ const CausalityRedux = (function () {
             return _store;
         },
         addPartitions(partitionDefinitions) {
-            if ( _store !== null )
-                error('CausalityRedux has already been initialized. This addPartition will not work.');
             if ( !Array.isArray(partitionDefinitions) )
                 partitionDefinitions = [partitionDefinitions];
-            _partitionDefinitions = _partitionDefinitions.concat(partitionDefinitions);
+            if (_store !== null) {
+                partitionDefinitions.forEach( entry => {
+                    _defaultState[entry.partitionName] = _merge({}, entry.defaultState);
+                    addPartitionInternal(entry);
+                });
+            } else
+                _partitionDefinitions = _partitionDefinitions.concat(partitionDefinitions);
         },
         subscribe(partitionName, listener, arrKeys, listenerName) {
             if ( typeof listener !== 'function' )
