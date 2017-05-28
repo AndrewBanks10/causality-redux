@@ -1,3 +1,5 @@
+### How can you hot reload your business code for easy debugging and also keep it completely separate from the UI code so that future UI platform changes are easy to adjust to? Use causality-redux.
+
 Causality-redux is an extension to redux that significantly reduces redux and react-redux coding and debugging.
 
 ## Benefits of causality-redux
