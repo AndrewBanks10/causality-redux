@@ -81,13 +81,12 @@ module.exports = Redux;
 
 var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; }; /** @preserve © 2017 Andrew Banks ALL RIGHTS RESERVED */
 
-/*eslint no-undef: ["error", { "typeof": false }] */
-
 var _redux = __webpack_require__(0);
 
 function _toConsumableArray(arr) { if (Array.isArray(arr)) { for (var i = 0, arr2 = Array(arr.length); i < arr.length; i++) { arr2[i] = arr[i]; } return arr2; } else { return Array.from(arr); } }
 
 var CausalityRedux = function () {
+
     var _operations = {
         STATE_COPY: 1,
         STATE_ARRAY_ADD: 2,
@@ -147,6 +146,7 @@ var CausalityRedux = function () {
         return Object.prototype.toString.call(obj).slice(8, -1);
     };
 
+    // This is from redux
     function _shallowEqual(objA, objB) {
         if (objA === objB) {
             return true;
@@ -168,6 +168,7 @@ var CausalityRedux = function () {
 
         return true;
     }
+    // end from redux
 
     var findPartition = function findPartition(partitionName) {
         var partition = CausalityRedux.partitionDefinitions.find(function (e) {
@@ -241,6 +242,7 @@ var CausalityRedux = function () {
                 };
             }(o, reducerName);
         }
+
         store[stateEntry.partitionName].subscribe = function (partitionName) {
             return function (listener, stateEntries) {
                 var listenerName = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : '';
@@ -249,12 +251,10 @@ var CausalityRedux = function () {
                 var partition = findPartition(partitionName);
                 stateEntries.forEach(function (se) {
                     var found = false;
-                    if (typeof partition.defaultState[se] !== 'undefined') found = true;else {
+                    if (_typeof(partition.defaultState[se]) !== undefinedString) found = true;else {
                         for (var key in partition.changerDefinitions) {
                             if (key === se) {
-                                if (stateEntries.length > 1) {
-                                    error('Can only subscribe to one changer event.');
-                                }
+                                if (stateEntries.length > 1) error('Can only subscribe to one changer event.');
                                 found = true;
                             }
                         }
@@ -565,10 +565,9 @@ var CausalityRedux = function () {
         });
     }
 
-    function init(partitionDefinitions, preloadedState, enhancer) {
-        var options = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : {};
+    function setOptions() {
+        var options = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
 
-        if ((typeof partitionDefinitions === 'undefined' ? 'undefined' : _typeof(partitionDefinitions)) === undefinedString) error('Missing first parameter partitionDefinitions.');
         _options = _merge({}, options);
         if (_options.onStateChange) {
             if (typeof _options.onStateChange !== 'function') error('options.onStateChange must be a function.');
@@ -578,6 +577,13 @@ var CausalityRedux = function () {
             if (typeof _options.onListener !== 'function') error('options.onListener must be a function.');
             _onListener = _options.onListener;
         }
+    }
+
+    function init(partitionDefinitions, preloadedState, enhancer) {
+        var options = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : {};
+
+        if ((typeof partitionDefinitions === 'undefined' ? 'undefined' : _typeof(partitionDefinitions)) === undefinedString) error('Missing first parameter partitionDefinitions.');
+        setOptions(options);
 
         var generalReducer = function generalReducer() {
             var state = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : _defaultState;
@@ -673,6 +679,9 @@ var CausalityRedux = function () {
             var options = arguments[3];
 
             if (_store !== null) error('CausalityRedux is already initialized.');
+            partitionDefinitions = partitionDefinitions.filter(function (entry) {
+                return _typeof(findPartition(entry.partitionName)) === undefinedString;
+            });
             var p = _partitionDefinitions.concat(partitionDefinitions);
             _partitionDefinitions = [];
             _store = init(p, preloadedState, enhancer, options);
@@ -681,6 +690,7 @@ var CausalityRedux = function () {
             });
             completionListeners = [];
             subscribers.forEach(function (e) {
+                if (_typeof(_store[e.partitionName]) === undefinedString) error('${e.partitionName} is an invalid partition.');
                 _store[e.partitionName].subscribe(e.listener, e.arrKeys, e.listenerName);
             });
             subscribers = [];
@@ -688,23 +698,32 @@ var CausalityRedux = function () {
         },
         addPartitions: function addPartitions(partitionDefinitions) {
             if (!Array.isArray(partitionDefinitions)) partitionDefinitions = [partitionDefinitions];
+            partitionDefinitions = partitionDefinitions.filter(function (entry) {
+                return _typeof(findPartition(entry.partitionName)) === undefinedString;
+            });
             if (_store !== null) {
                 partitionDefinitions.forEach(function (entry) {
                     _defaultState[entry.partitionName] = _merge({}, entry.defaultState);
                     addPartitionInternal(entry);
                 });
-            } else _partitionDefinitions = _partitionDefinitions.concat(partitionDefinitions);
+            } else {
+                _partitionDefinitions = _partitionDefinitions.concat(partitionDefinitions);
+            }
         },
         subscribe: function subscribe(partitionName, listener, arrKeys, listenerName) {
             if (typeof listener !== 'function') error('subscribe listener argument is not a function.');
             if (!Array.isArray(arrKeys)) error('subscribe: the 3rd argument must be an array of keys to listen on.');
-            if (_store !== null) _store[partitionName].subscribe(listener, arrKeys, listenerName);else subscribers.push({ partitionName: partitionName, listener: listener, arrKeys: arrKeys, listenerName: listenerName });
+            if (_store !== null) {
+                if (_typeof(_store[partitionName]) === undefinedString) error('${partitionName} is an invalid partition.');
+                _store[partitionName].subscribe(listener, arrKeys, listenerName);
+            } else subscribers.push({ partitionName: partitionName, listener: listener, arrKeys: arrKeys, listenerName: listenerName });
         },
         onStoreCreated: function onStoreCreated(completionListener) {
             if (typeof completionListener !== 'function') error('onStoreCreated argument is not a function.');
             if (_store !== null) completionListener();else completionListeners.push(completionListener);
         },
 
+        setOptions: setOptions,
         get store() {
             return _store;
         },

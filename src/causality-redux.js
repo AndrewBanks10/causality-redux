@@ -1,22 +1,21 @@
 ﻿/** @preserve © 2017 Andrew Banks ALL RIGHTS RESERVED */
 
-/*eslint no-undef: ["error", { "typeof": false }] */
-
-import { createStore } from 'redux'
+import { createStore } from 'redux';
 
 const CausalityRedux = (function () {
+    
     const _operations = {
-        STATE_COPY              : 1,
-        STATE_ARRAY_ADD         : 2,
-        STATE_ARRAY_DELETE      : 3,
-        STATE_ARRAY_ENTRY_MERGE : 4,
-        STATE_OBJECT_MERGE      : 5,
-        STATE_TOGGLE            : 6,
-        STATE_FUNCTION_CALL     : 7,
-        STATE_SETTODEFAULTS     : 8,
-        STATE_INCREMENT         : 9,
-        STATE_DECREMENT         : 10
-    }
+        STATE_COPY: 1,
+        STATE_ARRAY_ADD: 2,
+        STATE_ARRAY_DELETE: 3,
+        STATE_ARRAY_ENTRY_MERGE: 4,
+        STATE_OBJECT_MERGE: 5,
+        STATE_TOGGLE: 6,
+        STATE_FUNCTION_CALL: 7,
+        STATE_SETTODEFAULTS: 8,
+        STATE_INCREMENT: 9,
+        STATE_DECREMENT: 10
+    };
     
     const changerDefinitionKeys = [
         'arguments',
@@ -79,6 +78,7 @@ const CausalityRedux = (function () {
     
     const objectType = (obj) => Object.prototype.toString.call(obj).slice(8, -1);
     
+    // This is from redux
 	function _shallowEqual(objA, objB) {
         if (objA === objB) {
             return true;
@@ -99,7 +99,8 @@ const CausalityRedux = (function () {
         }
 
         return true;
-	}
+    }
+    // end from redux
     
     const findPartition = (partitionName) => {
         const partition = CausalityRedux.partitionDefinitions.find( e =>
@@ -172,6 +173,7 @@ const CausalityRedux = (function () {
                 };
             })(o,reducerName);
         }
+
         store[stateEntry.partitionName].subscribe = (function (partitionName) {
             return(
                 function(listener, stateEntries, listenerName='') {
@@ -180,14 +182,13 @@ const CausalityRedux = (function () {
                     const partition = findPartition(partitionName);
                     stateEntries.forEach( se => {
                         let found = false;
-                        if ( typeof partition.defaultState[se] !== 'undefined' )
+                        if ( typeof partition.defaultState[se] !== undefinedString )
                             found = true;
                         else {
                             for ( const key in partition.changerDefinitions ) {
                                 if ( key === se ) {
-                                    if ( stateEntries.length > 1 ) {
+                                    if ( stateEntries.length > 1 )
                                         error('Can only subscribe to one changer event.');
-                                    }
                                     found = true;
                                 }
                             }
@@ -527,10 +528,8 @@ const CausalityRedux = (function () {
             setupStateEntry(_store, stateEntry);
         });
     }
-        
-    function init(partitionDefinitions, preloadedState, enhancer, options={}) {
-        if ( typeof partitionDefinitions === undefinedString )
-            error('Missing first parameter partitionDefinitions.');
+
+    function setOptions(options = {}) {
         _options = _merge({}, options);
         if ( _options.onStateChange ) {
             if ( typeof _options.onStateChange !== 'function' )
@@ -542,6 +541,12 @@ const CausalityRedux = (function () {
                 error('options.onListener must be a function.');
             _onListener = _options.onListener;
         }
+    }
+        
+    function init(partitionDefinitions, preloadedState, enhancer, options={}) {
+        if ( typeof partitionDefinitions === undefinedString )
+            error('Missing first parameter partitionDefinitions.');
+        setOptions(options);
 
         const generalReducer = (state=_defaultState, action) => {
             if ( !startState )
@@ -630,12 +635,17 @@ const CausalityRedux = (function () {
         createStore(partitionDefinitions=[], preloadedState, enhancer, options ) {
             if ( _store !== null )
                 error('CausalityRedux is already initialized.');
+            partitionDefinitions = partitionDefinitions.filter(entry =>
+                typeof findPartition(entry.partitionName) === undefinedString
+            );
             const p = _partitionDefinitions.concat(partitionDefinitions);
             _partitionDefinitions = [];
             _store = init(p, preloadedState, enhancer, options );
             completionListeners.forEach( e => e() );
             completionListeners = [];
-            subscribers.forEach( e => {
+            subscribers.forEach(e => {
+                if (typeof _store[e.partitionName] === undefinedString)
+                    error('${e.partitionName} is an invalid partition.');   
                 _store[e.partitionName].subscribe(e.listener, e.arrKeys, e.listenerName); 
             });
             subscribers = [];
@@ -644,22 +654,28 @@ const CausalityRedux = (function () {
         addPartitions(partitionDefinitions) {
             if ( !Array.isArray(partitionDefinitions) )
                 partitionDefinitions = [partitionDefinitions];
+            partitionDefinitions = partitionDefinitions.filter(entry =>
+                typeof findPartition(entry.partitionName) === undefinedString
+            );
             if (_store !== null) {
-                partitionDefinitions.forEach( entry => {
+                partitionDefinitions.forEach(entry => {
                     _defaultState[entry.partitionName] = _merge({}, entry.defaultState);
                     addPartitionInternal(entry);
                 });
-            } else
+            } else {
                 _partitionDefinitions = _partitionDefinitions.concat(partitionDefinitions);
+            }
         },
         subscribe(partitionName, listener, arrKeys, listenerName) {
-            if ( typeof listener !== 'function' )
+            if (typeof listener !== 'function')
                 error('subscribe listener argument is not a function.');
-            if ( !Array.isArray(arrKeys) )
+            if (!Array.isArray(arrKeys))
                 error('subscribe: the 3rd argument must be an array of keys to listen on.');
-            if ( _store !== null )
+            if (_store !== null) { 
+                if (typeof _store[partitionName] === undefinedString)
+                    error('${partitionName} is an invalid partition.');    
                 _store[partitionName].subscribe(listener, arrKeys, listenerName);
-            else
+            } else
                 subscribers.push({partitionName, listener, arrKeys, listenerName});
         },
         onStoreCreated(completionListener) {
@@ -670,6 +686,7 @@ const CausalityRedux = (function () {
             else
                 completionListeners.push(completionListener);
         },
+        setOptions,
         get store() {
             return _store;
         },
