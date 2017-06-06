@@ -587,7 +587,7 @@ const incrementPlugin = {
     validatePartitionEntry: incrementValidatePartitionEntry
 };
 
-CausalityRedux.addPlugin(incrementPlugin);
+CausalityRedux.addPlugins(incrementPlugin);
 
 const COUNTER_STATE_PLUGIN = 'COUNTER_STATE_PLUGIN';
 const reduxPluginCounter = {

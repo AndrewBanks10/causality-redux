@@ -879,10 +879,17 @@ var CausalityRedux = function () {
         // .validateChangerArguments(...theirArgs) [Optional] , this is called for you to verify that their arguments for your changer meet
         //  your requirements. Check types and number of arguments. Throw an exception if error.
         // .reducer(state, action). Your plugin reducer.
+        // .partitionDefinitions [Optional] - The state partitions required by the plugin.
+        // .onStoreCreated [Optional] - Callback for onStoreCreated
         //
-        addPlugin: function addPlugin(pluginObj) {
-            verifyPlugin(pluginObj);
-            _plugins.push(pluginObj);
+        addPlugins: function addPlugins(pluginObjs) {
+            if (!Array.isArray(pluginObjs)) pluginObjs = [pluginObjs];
+            pluginObjs.forEach(function (pluginObj) {
+                verifyPlugin(pluginObj);
+                _plugins.push(pluginObj);
+                if (_typeof(pluginObj.partitionDefinitions) !== undefinedString) CausalityRedux.addPartitions(pluginObj.partitionDefinitions);
+                if (typeof pluginObj.onStoreCreated === 'function') CausalityRedux.onStoreCreated(pluginObj.onStoreCreated);
+            });
         },
 
         // Subscribe to changes in a partion of the store. This can be done before and after createStore.

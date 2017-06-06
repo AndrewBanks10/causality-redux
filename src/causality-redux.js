@@ -814,8 +814,8 @@ const CausalityRedux = (function () {
 
     return {
         // creates the causality-redux store.
-        createStore(partitionDefinitions=[], preloadedState, enhancer, options ) {
-            if ( _store !== null )
+        createStore(partitionDefinitions = [], preloadedState, enhancer, options) {
+            if (_store !== null)
                 error('CausalityRedux is already initialized.');
             partitionDefinitions = partitionDefinitions.filter(entry =>
                 typeof findPartition(entry.partitionName) === undefinedString
@@ -824,20 +824,20 @@ const CausalityRedux = (function () {
             _partitionDefinitions = [];
             _store = init(p, preloadedState, enhancer, options);
             // call all those that called onStoreCreated with a listener for the store being created.
-            _completionListeners.forEach( e => e() );
+            _completionListeners.forEach(e => e());
             _completionListeners = [];
             // Add the subscribers that had subscribed before the store was created.
             _subscribers.forEach(e => {
                 if (typeof _store[e.partitionName] === undefinedString)
-                    error('${e.partitionName} is an invalid partition.');   
-                _store[e.partitionName].subscribe(e.listener, e.arrKeys, e.listenerName); 
+                    error('${e.partitionName} is an invalid partition.');
+                _store[e.partitionName].subscribe(e.listener, e.arrKeys, e.listenerName);
             });
             _subscribers = [];
             return _store;
         },
         // Add partition. This allows partitions to be added before and after createStore
         addPartitions(partitionDefinitions) {
-            if ( !Array.isArray(partitionDefinitions) )
+            if (!Array.isArray(partitionDefinitions))
                 partitionDefinitions = [partitionDefinitions];
             partitionDefinitions = partitionDefinitions.filter(entry =>
                 typeof findPartition(entry.partitionName) === undefinedString
@@ -866,10 +866,20 @@ const CausalityRedux = (function () {
         // .validateChangerArguments(...theirArgs) [Optional] , this is called for you to verify that their arguments for your changer meet
         //  your requirements. Check types and number of arguments. Throw an exception if error.
         // .reducer(state, action). Your plugin reducer.
+        // .partitionDefinitions [Optional] - The state partitions required by the plugin.
+        // .onStoreCreated [Optional] - Callback for onStoreCreated
         //
-        addPlugin(pluginObj) {
-            verifyPlugin(pluginObj);
-            _plugins.push(pluginObj);
+        addPlugins(pluginObjs) {
+            if (!Array.isArray(pluginObjs))
+                pluginObjs = [pluginObjs];
+            pluginObjs.forEach(pluginObj => {
+                verifyPlugin(pluginObj);
+                _plugins.push(pluginObj);
+                if(typeof pluginObj.partitionDefinitions !== undefinedString)
+                CausalityRedux.addPartitions(pluginObj.partitionDefinitions);
+                if (typeof pluginObj.onStoreCreated === 'function')
+                    CausalityRedux.onStoreCreated(pluginObj.onStoreCreated);
+            });
         },
         // Subscribe to changes in a partion of the store. This can be done before and after createStore.
         subscribe(partitionName, listener, arrKeys, listenerName) {
