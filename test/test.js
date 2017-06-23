@@ -3,7 +3,7 @@ var isEqual = require('lodash/isEqual');
 var merge = require('lodash/merge');
 var Redux = require('redux');
 
-var CausalityRedux = require('../lib/causality-redux.js');
+var CausalityRedux = require('../lib/causality-redux.js').default;
 
 describe('CausalityRedux definition', function(){
   it('CausalityRedux should exist', function(){
@@ -176,7 +176,6 @@ describe('Verify argument errors are detected.', function(){
     testArgument( 'subscriber did not provide an array of keys for listening.', store[OUTSIDE_EVENT].subscribe, subscriberTest);
     testArgument('subscriber provided invalid key.', store[OUTSIDE_EVENT].subscribe, subscriberTest, ['event1']);
 
-    testArgument('Invalid second createStore.', CausalityRedux.createStore);
     testArgument('Invalid subscribe no listener.', CausalityRedux.subscribe);
     testArgument('Invalid subscribe no keys.', CausalityRedux.subscribe, subscriberTest);
     testArgument('Invalid subscribe invalid key.', CausalityRedux.subscribe, subscriberTest, ['event1']);
@@ -324,6 +323,20 @@ var argument = [4, {event:0}];
 outsideEvent.onOutside(argument[0]);
 verifyStateAction( "test CausalityRedux.operations.STATE_FUNCTION_CALL on OUTSIDE_EVENT count", argument, outside_event, 'listenerOutsideEvent', 'outside_event set to correct result');
 
+//
+// test setState on author
+//
+argument = 'author2';
+commentsState.setState({ author: argument });
+verifyStateAction( "test setState", argument, author, 'listenerCommentAuthor', 'author set to correct result');
+
+//
+// Test the setState and getState proxies.
+//
+argument = 'author3';
+commentsState.partitionState.author = argument;
+
+verifyStateAction( "test getState/setState proxies", commentsState.partitionState.author, argument, 'listenerCommentAuthor', 'author set to correct result');
 
 //
 // test CausalityRedux.operations.STATE_COPY on author
