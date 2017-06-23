@@ -1,14 +1,15 @@
 {
   "name": "causality-redux",
-  "version": "2.0.13",
+  "version": "2.0.14",
   "description": "A causality based extension of redux",
   "main": "index.js",
   "scripts": {
     "test": "mocha --reporter spec test",
     "debugtest": "mocha --debug-brk --inspect ./test/test.js",
-    "build": "npm run build:es && npm run build:min",
-    "build:es": "cross-env NODE_ENV=none webpack --config webpack.config.js",
-    "build:min": "cross-env NODE_ENV=min webpack --config webpack.config.js"
+    "build": "npm run build:lib && npm run build:es && npm run build:min",
+    "build:lib": "webpack --config webpack.config-lib.js",
+    "build:es": "webpack --config webpack.config-dist.js",
+    "build:min": "cross-env NODE_ENV=production webpack --config webpack.config-dist-min.js"
   },
   "author": {
     "name": "Andrew Banks",
@@ -27,7 +28,8 @@
     "lodash": "^4.17.4"
   },
   "dependencies": {
-    "redux": "^3.6.0"
+    "redux": "^3.6.0",
+    "shallow-copy": "^0.0.1"
   },
   "repository" :
   { "type" : "git",
