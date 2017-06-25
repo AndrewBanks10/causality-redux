@@ -1,7 +1,6 @@
 ﻿/** @preserve © 2017 Andrew Banks ALL RIGHTS RESERVED */
-
 import { createStore as reduxCreateStore } from 'redux';
-const shallowCopy = require('shallow-copy');
+import { handleAddKeysToProxyObject, getPartitionProxy, shallowCopy, objectAssign, getKeys, shallowEqual } from './util';
 
 export const operations = {
     STATE_COPY:                 1,
@@ -88,37 +87,9 @@ if (typeof createReduxStore === undefinedString) {
 
 const error = (msg) => { throw new Error(`CausalityRedux: ${msg}`); };
 
-export const merge = Object.assign;   
+export const merge = typeof Object.assign === 'function' ? Object.assign : objectAssign;   
 
 const objectType = (obj) => Object.prototype.toString.call(obj).slice(8, -1);
-
-// Allows symbols to be used as keys.
-export const getKeys = (obj) =>
-    typeof obj === undefinedString ? [] : [...Object.keys(obj), ...Object.getOwnPropertySymbols(obj)];
-
-// This is from redux
-export function shallowEqual(objA, objB) {
-    if (objA === objB) {
-        return true;
-    }
-
-    const keysA = getKeys(objA);
-    const keysB = getKeys(objB);
-
-    if (keysA.length !== keysB.length) {
-        return false;
-    }
-
-    const hasOwn = Object.prototype.hasOwnProperty;
-    for (let i = 0; i < keysA.length; i++) {
-        if (!hasOwn.call(objB, keysA[i]) || objA[keysA[i]] !== objB[keysA[i]]) {
-            return false;
-        }
-    }
-
-    return true;
-}
-// end from redux
 
 const findPartition = (partitionName) => {
     const partition = CausalityRedux.partitionDefinitions.find(e =>
@@ -255,8 +226,8 @@ const internalPartitionSetState = (store, partitionName) => {
         actionObj.theirArgs = theArg;
         actionObj.isSetState = true;
         actionObj.arguments = [];
-        actionObj.changerName = 'setState';
         actionObj.type = 'setState';
+        actionObj.changerName = actionObj.type;
         actionObj.partitionName = partitionName;
         store.dispatch(actionObj);
     };
@@ -267,26 +238,16 @@ const validateStateEntry = (stateEntry) => {
         error('partitionName not found.');
     if (typeof stateEntry.defaultState === undefinedString)
         error(`defaultState missing from entry: ${stateEntry.partitionName}`);
-    if (typeof stateEntry.changers === undefinedString)
-        error(`changers missing from entry: ${stateEntry.partitionName}`);
-    if (typeof stateEntry.reducers === undefinedString)
-        error(`reducers missing from entry: ${stateEntry.partitionName}`);
 };
 
 const partitionProxyHandler = {
     get(target, key) {
         const toClone = target.getState()[key];
-        let finalClone;
-        if (toClone instanceof Object)
-            finalClone = shallowCopy(toClone);
-        else
-            finalClone = toClone;               
-        return finalClone;
+        return toClone instanceof Object ? shallowCopy(toClone) : toClone;
     },
     set(target, key, value) {
-        const obj = {};
-        obj[key] = value;
-        target.setState(obj);
+        if (target.getState()[key] !== value)
+            target.setState({[key]: value});
         return true;
     }
 };
@@ -311,7 +272,7 @@ const setupPartition = (store, stateEntry) => {
     partitionStoreObject.subscribe = internalPartitionSubscriber(partitionName);
     partitionStoreObject.getState = internalPartitionGetState(store, partitionName);
     partitionStoreObject.setState = internalPartitionSetState(store, partitionName);
-    partitionStoreObject.partitionState = new Proxy(partitionStoreObject, partitionProxyHandler);
+    partitionStoreObject.partitionState = getPartitionProxy(partitionName, store[partitionName]);
 };
 
 const buildStateEntryChangersAndReducers = (entry) => {
@@ -569,20 +530,24 @@ const buildStateEntryChangersAndReducers = (entry) => {
                         newState[action.arrayName] = newArray;
                         break;
                     case operations.STATE_ARRAY_DELETE:
-                        newArray = newState[action.arrayName].filter(entry =>
-                            entry[action.keyName] !== action.arrayArg
-                        );
+                        newArray = newState[action.arrayName].filter(entry => {
+                            if (typeof entry[action.keyName] === undefinedString)
+                                return false;    
+                            return entry[action.keyName].toString() !== action.arrayArg;
+                        });
                         newState[action.arrayName] = newArray;
                         break;
                     case operations.STATE_ARRAY_ENTRY_MERGE:
                         newArray = [...newState[action.arrayName]];
-                        index = newState[action.arrayName].findIndex(entry =>
-                            entry[action.keyName] === action.arrayArg
-                        );
+                        index = newArray.findIndex(entry => {
+                            if (typeof entry[action.keyName] === undefinedString)
+                                return false;
+                            return entry[action.keyName].toString() === action.arrayArg;
+                        });
                         if (index >= 0) {
                             newArray[index] = merge(newArray[index], action.arrayEntryArg);
                             newState[action.arrayName] = newArray;
-                        }
+                        }  
                         break;
                     case operations.STATE_OBJECT_MERGE:
                         key = action.arguments[0];
@@ -767,6 +732,8 @@ function init(partitionDefinitions, preloadedState, enhancer, options={}) {
         if ( shallowEqual( newState[action.partitionName], state[action.partitionName] ) )
             return state;
         
+        handleAddKeysToProxyObject(action.partitionName, state, newState);
+        
         indicateStateChange(action.partitionName, action.type, action.operation, state[action.partitionName], newState[action.partitionName], action.changerName, action.theirArgs);
 
         // This is used to determine what partition listeners are involved in this change.           
@@ -830,7 +797,7 @@ function init(partitionDefinitions, preloadedState, enhancer, options={}) {
         _defaultState[entry.partitionName] = merge({},entry.defaultState);
     });
 
-    // handle initial hydration of he redux store.        
+    // handle initial hydration of the redux store.        
     let newObj = {};
     if ( typeof preloadedState !== undefinedString ) {
         const stateKeys = [...getKeys(_defaultState), ...getKeys(preloadedState)];
@@ -864,6 +831,8 @@ const verifyPlugin = (plugin) => {
 
 // creates the causality-redux store.
 export function createStore(partitionDefinitions = [], preloadedState, enhancer, options) {
+    if (!Array.isArray(partitionDefinitions))
+        partitionDefinitions = [partitionDefinitions];
     // This allows createStore to be called more than once for hot re-loading or other reasons.
     if (_store !== null) {
         addPartitions(partitionDefinitions);
