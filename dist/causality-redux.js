@@ -63,7 +63,7 @@
 /******/ 	__webpack_require__.p = "";
 /******/
 /******/ 	// Load entry module and return exports
-/******/ 	return __webpack_require__(__webpack_require__.s = 4);
+/******/ 	return __webpack_require__(__webpack_require__.s = 5);
 /******/ })
 /************************************************************************/
 /******/ ([
@@ -76,22 +76,24 @@
 Object.defineProperty(exports, "__esModule", {
     value: true
 });
-exports.getKeys = exports.merge = exports.operations = undefined;
+exports.merge = exports.operations = undefined;
 
 var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; }; /** @preserve © 2017 Andrew Banks ALL RIGHTS RESERVED */
 
-exports.shallowEqual = shallowEqual;
+
 exports.createStore = createStore;
 exports.addPartitions = addPartitions;
 exports.addPlugins = addPlugins;
 exports.subscribe = subscribe;
 exports.onStoreCreated = onStoreCreated;
 
-var _redux = __webpack_require__(3);
+var _redux = __webpack_require__(4);
+
+var _util = __webpack_require__(2);
 
 function _toConsumableArray(arr) { if (Array.isArray(arr)) { for (var i = 0, arr2 = Array(arr.length); i < arr.length; i++) { arr2[i] = arr[i]; } return arr2; } else { return Array.from(arr); } }
 
-var shallowCopy = __webpack_require__(2);
+function _defineProperty(obj, key, value) { if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
 
 var operations = exports.operations = {
     STATE_COPY: 1,
@@ -153,40 +155,11 @@ var error = function error(msg) {
     throw new Error('CausalityRedux: ' + msg);
 };
 
-var merge = exports.merge = Object.assign;
+var merge = exports.merge = typeof Object.assign === 'function' ? Object.assign : _util.objectAssign;
 
 var objectType = function objectType(obj) {
     return Object.prototype.toString.call(obj).slice(8, -1);
 };
-
-// Allows symbols to be used as keys.
-var getKeys = exports.getKeys = function getKeys(obj) {
-    return (typeof obj === 'undefined' ? 'undefined' : _typeof(obj)) === undefinedString ? [] : [].concat(_toConsumableArray(Object.keys(obj)), _toConsumableArray(Object.getOwnPropertySymbols(obj)));
-};
-
-// This is from redux
-function shallowEqual(objA, objB) {
-    if (objA === objB) {
-        return true;
-    }
-
-    var keysA = getKeys(objA);
-    var keysB = getKeys(objB);
-
-    if (keysA.length !== keysB.length) {
-        return false;
-    }
-
-    var hasOwn = Object.prototype.hasOwnProperty;
-    for (var i = 0; i < keysA.length; i++) {
-        if (!hasOwn.call(objB, keysA[i]) || objA[keysA[i]] !== objB[keysA[i]]) {
-            return false;
-        }
-    }
-
-    return true;
-}
-// end from redux
 
 var findPartition = function findPartition(partitionName) {
     var partition = CausalityRedux.partitionDefinitions.find(function (e) {
@@ -287,7 +260,7 @@ var internalPartitionSubscriber = function internalPartitionSubscriber(partition
         stateEntries.forEach(function (se) {
             var found = false;
             if (_typeof(partition.defaultState[se]) !== undefinedString) found = true;else {
-                getKeys(partition.changerDefinitions).forEach(function (key) {
+                (0, _util.getKeys)(partition.changerDefinitions).forEach(function (key) {
                     if (key === se) {
                         if (stateEntries.length > 1) error('Can only subscribe to one changer event.');
                         found = true;
@@ -322,8 +295,8 @@ var internalPartitionSetState = function internalPartitionSetState(store, partit
         actionObj.theirArgs = theArg;
         actionObj.isSetState = true;
         actionObj.arguments = [];
-        actionObj.changerName = 'setState';
         actionObj.type = 'setState';
+        actionObj.changerName = actionObj.type;
         actionObj.partitionName = partitionName;
         store.dispatch(actionObj);
     };
@@ -332,21 +305,15 @@ var internalPartitionSetState = function internalPartitionSetState(store, partit
 var validateStateEntry = function validateStateEntry(stateEntry) {
     if (_typeof(stateEntry.partitionName) === undefinedString) error('partitionName not found.');
     if (_typeof(stateEntry.defaultState) === undefinedString) error('defaultState missing from entry: ' + stateEntry.partitionName);
-    if (_typeof(stateEntry.changers) === undefinedString) error('changers missing from entry: ' + stateEntry.partitionName);
-    if (_typeof(stateEntry.reducers) === undefinedString) error('reducers missing from entry: ' + stateEntry.partitionName);
 };
 
 var partitionProxyHandler = {
     get: function get(target, key) {
         var toClone = target.getState()[key];
-        var finalClone = void 0;
-        if (toClone instanceof Object) finalClone = shallowCopy(toClone);else finalClone = toClone;
-        return finalClone;
+        return toClone instanceof Object ? (0, _util.shallowCopy)(toClone) : toClone;
     },
     set: function set(target, key, value) {
-        var obj = {};
-        obj[key] = value;
-        target.setState(obj);
+        if (target.getState()[key] !== value) target.setState(_defineProperty({}, key, value));
         return true;
     }
 };
@@ -358,7 +325,7 @@ var setupPartition = function setupPartition(store, stateEntry) {
     var partitionName = stateEntry.partitionName;
     store[partitionName] = {};
     var partitionStoreObject = store[partitionName];
-    getKeys(stateEntry.changers).forEach(function (o) {
+    (0, _util.getKeys)(stateEntry.changers).forEach(function (o) {
         var reducerName = o + 'Reducer';
         var isPlugin = _typeof(stateEntry.changerDefinitions[o]) !== undefinedString && _typeof(stateEntry.changerDefinitions[o].pluginId) !== undefinedString;
         if (!isPlugin) {
@@ -370,7 +337,7 @@ var setupPartition = function setupPartition(store, stateEntry) {
     partitionStoreObject.subscribe = internalPartitionSubscriber(partitionName);
     partitionStoreObject.getState = internalPartitionGetState(store, partitionName);
     partitionStoreObject.setState = internalPartitionSetState(store, partitionName);
-    partitionStoreObject.partitionState = new Proxy(partitionStoreObject, partitionProxyHandler);
+    partitionStoreObject.partitionState = (0, _util.getPartitionProxy)(partitionName, store[partitionName]);
 };
 
 var buildStateEntryChangersAndReducers = function buildStateEntryChangersAndReducers(entry) {
@@ -393,8 +360,8 @@ var buildStateEntryChangersAndReducers = function buildStateEntryChangersAndRedu
     };
 
     var compareArrayArgTypesForArray = function compareArrayArgTypesForArray(o1, o2) {
-        var k1 = getKeys(o1);
-        var k2 = getKeys(o2);
+        var k1 = (0, _util.getKeys)(o1);
+        var k2 = (0, _util.getKeys)(o2);
         var str = '';
         k1.some(function (key) {
             if (_typeof(o2[key]) === undefinedString) str = key + ' is missing in the first argument';else if (o1[key] !== objectType(o2[key])) str = 'Invalid type for ' + key + ' in the first argument';
@@ -412,7 +379,7 @@ var buildStateEntryChangersAndReducers = function buildStateEntryChangersAndRedu
 
     // Validates a changer entry in a partition definition.        
     var validateChangerArg = function validateChangerArg(changerArg) {
-        getKeys(changerArg).forEach(function (tag) {
+        (0, _util.getKeys)(changerArg).forEach(function (tag) {
             var valid = changerDefinitionKeys.some(function (keyName) {
                 return tag === keyName;
             });
@@ -595,14 +562,16 @@ var buildStateEntryChangersAndReducers = function buildStateEntryChangersAndRedu
                     break;
                 case operations.STATE_ARRAY_DELETE:
                     newArray = newState[action.arrayName].filter(function (entry) {
-                        return entry[action.keyName] !== action.arrayArg;
+                        if (_typeof(entry[action.keyName]) === undefinedString) return false;
+                        return entry[action.keyName].toString() !== action.arrayArg;
                     });
                     newState[action.arrayName] = newArray;
                     break;
                 case operations.STATE_ARRAY_ENTRY_MERGE:
                     newArray = [].concat(_toConsumableArray(newState[action.arrayName]));
-                    index = newState[action.arrayName].findIndex(function (entry) {
-                        return entry[action.keyName] === action.arrayArg;
+                    index = newArray.findIndex(function (entry) {
+                        if (_typeof(entry[action.keyName]) === undefinedString) return false;
+                        return entry[action.keyName].toString() === action.arrayArg;
                     });
                     if (index >= 0) {
                         newArray[index] = merge(newArray[index], action.arrayEntryArg);
@@ -627,7 +596,7 @@ var buildStateEntryChangersAndReducers = function buildStateEntryChangersAndRedu
     //
     // Setup the internal changers and reducers.
     //
-    getKeys(entry.changerDefinitions).forEach(function (o) {
+    (0, _util.getKeys)(entry.changerDefinitions).forEach(function (o) {
         var changerArg = entry.changerDefinitions[o];
         if ((typeof changerArg === 'undefined' ? 'undefined' : _typeof(changerArg)) === undefinedString) error('Changer definition argument for ' + o + ' must be defined');
 
@@ -650,8 +619,8 @@ var buildStateEntryChangersAndReducers = function buildStateEntryChangersAndRedu
 
 function validatePartition(stateEntry) {
     var changerKeys = [];
-    if (_typeof(stateEntry.changerDefinitions) !== undefinedString) changerKeys = getKeys(stateEntry.changerDefinitions);
-    if (_typeof(stateEntry.changers) !== undefinedString) changerKeys = [].concat(_toConsumableArray(changerKeys), _toConsumableArray(getKeys(stateEntry.changers)));
+    if (_typeof(stateEntry.changerDefinitions) !== undefinedString) changerKeys = (0, _util.getKeys)(stateEntry.changerDefinitions);
+    if (_typeof(stateEntry.changers) !== undefinedString) changerKeys = [].concat(_toConsumableArray(changerKeys), _toConsumableArray((0, _util.getKeys)(stateEntry.changers)));
 
     changerKeys.forEach(function (e) {
         var found = invalidChangerKeys.some(function (e2) {
@@ -664,7 +633,7 @@ function validatePartition(stateEntry) {
         if (_typeof(stateEntry[entry]) === undefinedString) error(entry + ' is a required entry in ' + stateEntry.partitionName + '.');
     });
 
-    getKeys(stateEntry).forEach(function (o) {
+    (0, _util.getKeys)(stateEntry).forEach(function (o) {
         var isvalid = stateEntryValidKeys.some(function (entry) {
             return o === entry;
         });
@@ -734,7 +703,7 @@ function init(partitionDefinitions, preloadedState, enhancer) {
         // So, set up a new one in case something changes.
         //
         var newState = {};
-        getKeys(state).forEach(function (entry) {
+        (0, _util.getKeys)(state).forEach(function (entry) {
             newState[entry] = state[entry];
         });
 
@@ -744,7 +713,7 @@ function init(partitionDefinitions, preloadedState, enhancer) {
                 newState[action.partitionName] = merge({}, action.defaultState);
             } else {
                 // This is for a pre-hydrated state.
-                getKeys(action.defaultState).forEach(function (key) {
+                (0, _util.getKeys)(action.defaultState).forEach(function (key) {
                     if (_typeof(newState[action.partitionName][key]) === undefinedString) newState[action.partitionName][key] = action.defaultState[key];
                 });
             }
@@ -752,7 +721,7 @@ function init(partitionDefinitions, preloadedState, enhancer) {
                 _startState[action.partitionName] = merge({}, action.defaultState);
             } else {
                 // This is for a pre-hydrated state.
-                getKeys(action.defaultState).forEach(function (key) {
+                (0, _util.getKeys)(action.defaultState).forEach(function (key) {
                     if (_typeof(_startState[action.partitionName][key]) === undefinedString) _startState[action.partitionName][key] = action.defaultState[key];
                 });
             }
@@ -772,7 +741,9 @@ function init(partitionDefinitions, preloadedState, enhancer) {
         // If the entry is an object, only pointer equality is checked. Lower objects may be different
         // and an array that had an element pushed directly in the redux store object  will not regester as a change.
         //
-        if (shallowEqual(newState[action.partitionName], state[action.partitionName])) return state;
+        if ((0, _util.shallowEqual)(newState[action.partitionName], state[action.partitionName])) return state;
+
+        (0, _util.handleAddKeysToProxyObject)(action.partitionName, state, newState);
 
         indicateStateChange(action.partitionName, action.type, action.operation, state[action.partitionName], newState[action.partitionName], action.changerName, action.theirArgs);
 
@@ -787,7 +758,7 @@ function init(partitionDefinitions, preloadedState, enhancer) {
     var generalListener = function generalListener() {
         var state = _store.getState();
         // Determine what listeners to call. First, only partitions that have changed will be examined.
-        getKeys(_partitionsThatChanged).forEach(function (o) {
+        (0, _util.getKeys)(_partitionsThatChanged).forEach(function (o) {
             _listeners.forEach(function (item) {
                 if (o === item.partitionName) {
                     var partitionState = state[o];
@@ -836,10 +807,10 @@ function init(partitionDefinitions, preloadedState, enhancer) {
         _defaultState[entry.partitionName] = merge({}, entry.defaultState);
     });
 
-    // handle initial hydration of he redux store.        
+    // handle initial hydration of the redux store.        
     var newObj = {};
     if ((typeof preloadedState === 'undefined' ? 'undefined' : _typeof(preloadedState)) !== undefinedString) {
-        var stateKeys = [].concat(_toConsumableArray(getKeys(_defaultState)), _toConsumableArray(getKeys(preloadedState)));
+        var stateKeys = [].concat(_toConsumableArray((0, _util.getKeys)(_defaultState)), _toConsumableArray((0, _util.getKeys)(preloadedState)));
         stateKeys.forEach(function (key) {
             newObj[key] = merge({}, _defaultState[key], preloadedState[key]);
         });
@@ -872,6 +843,7 @@ function createStore() {
     var enhancer = arguments[2];
     var options = arguments[3];
 
+    if (!Array.isArray(partitionDefinitions)) partitionDefinitions = [partitionDefinitions];
     // This allows createStore to be called more than once for hot re-loading or other reasons.
     if (_store !== null) {
         addPartitions(partitionDefinitions);
@@ -972,9 +944,9 @@ var CausalityRedux = {
     subscribe: subscribe,
     onStoreCreated: onStoreCreated,
     setOptions: setOptions,
-    shallowEqual: shallowEqual,
+    shallowEqual: _util.shallowEqual,
     merge: merge,
-    getKeys: getKeys,
+    getKeys: _util.getKeys,
     operations: operations,
     get store() {
         return _store;
@@ -1012,53 +984,312 @@ if (typeof window !== 'undefined') window['CausalityRedux'] = _causalityRedux2.d
 
 /***/ }),
 /* 2 */
-/***/ (function(module, exports) {
+/***/ (function(module, exports, __webpack_require__) {
 
-module.exports = function (obj) {
-    if (!obj || typeof obj !== 'object') return obj;
-    
-    var copy;
-    
-    if (isArray(obj)) {
-        var len = obj.length;
-        copy = Array(len);
-        for (var i = 0; i < len; i++) {
-            copy[i] = obj[i];
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+exports.getPartitionProxy = exports.handleAddKeysToProxyObject = exports.getKeys = exports.objectAssign = undefined;
+
+var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
+
+exports.shallowEqual = shallowEqual;
+exports.shallowCopy = shallowCopy;
+
+var _objectAssign = __webpack_require__(3);
+
+var _objectAssign2 = _interopRequireDefault(_objectAssign);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _defineProperty(obj, key, value) { if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
+
+function _toConsumableArray(arr) { if (Array.isArray(arr)) { for (var i = 0, arr2 = Array(arr.length); i < arr.length; i++) { arr2[i] = arr[i]; } return arr2; } else { return Array.from(arr); } }
+
+exports.objectAssign = _objectAssign2.default;
+
+
+var getKeysWOSymbols = function getKeysWOSymbols(obj) {
+    if (!obj) return [];
+    return Object.keys(obj);
+};
+
+var getKeysWSymbols = function getKeysWSymbols(obj) {
+    if (!obj) return [];
+    return [].concat(_toConsumableArray(Object.keys(obj)), _toConsumableArray(Object.getOwnPropertySymbols(obj)));
+};
+
+var getKeys = getKeysWOSymbols;
+if (typeof Object.getOwnPropertySymbols === 'function') exports.getKeys = getKeys = getKeysWSymbols;
+exports.getKeys = getKeys;
+function shallowEqual(objA, objB) {
+    if (objA === objB) return true;
+
+    var keysA = getKeys(objA);
+    var keysB = getKeys(objB);
+
+    if (keysA.length !== keysB.length) return false;
+
+    var hasOwn = Object.prototype.hasOwnProperty;
+    for (var i = 0; i < keysA.length; i++) {
+        if (!hasOwn.call(objB, keysA[i]) || objA[keysA[i]] !== objB[keysA[i]]) {
+            return false;
         }
     }
-    else {
-        var keys = objectKeys(obj);
-        copy = {};
-        
-        for (var i = 0, l = keys.length; i < l; i++) {
-            var key = keys[i];
-            copy[key] = obj[key];
-        }
-    }
+
+    return true;
+}
+
+function shallowCopy(obj) {
+    if (!obj || (typeof obj === 'undefined' ? 'undefined' : _typeof(obj)) !== 'object') return obj;
+    if (Array.isArray(obj)) return [].concat(_toConsumableArray(obj));
+
+    var copy = {};
+    getKeys(obj).forEach(function (key) {
+        return copy[key] = obj[key];
+    });
     return copy;
+}
+
+var proxyObjects = {};
+
+var addProxyObject = function addProxyObject(partitionName, obj) {
+    return proxyObjects[partitionName] = obj;
 };
 
-var objectKeys = Object.keys || function (obj) {
-    var keys = [];
-    for (var key in obj) {
-        if ({}.hasOwnProperty.call(obj, key)) keys.push(key);
+var proxyDefined = function proxyDefined() {
+    return typeof Proxy !== 'undefined';
+};
+
+var handleAddKeysToProxyObject = exports.handleAddKeysToProxyObject = function handleAddKeysToProxyObject(partitionName, currentState, newState) {
+    if (proxyDefined()) return;
+    getKeys(newState).forEach(function (key) {
+        if (typeof currentState[key] === 'undefined') defineProxyGetSet(proxyObjects[partitionName], store[partitionName], key);
+    });
+};
+
+var getPartitionValue = function getPartitionValue(target, key) {
+    var toClone = target.getState()[key];
+    return toClone instanceof Object ? shallowCopy(toClone) : toClone;
+};
+
+var setPartitionValue = function setPartitionValue(target, key, value) {
+    if (target.getState()[key] !== value) target.setState(_defineProperty({}, key, value));
+    return true;
+};
+
+var defineProxyGetSet = function defineProxyGetSet(obj, target, key) {
+    Object.defineProperty(obj, key, {
+        get: function get() {
+            return getPartitionValue(target, key);
+        },
+        set: function set(value) {
+            setPartitionValue(target, key, value);
+        }
+    });
+};
+
+var simulateProxy = function simulateProxy(partitionName, target) {
+    var obj = {};
+    getKeys(target.getState()).forEach(function (key) {
+        defineProxyGetSet(obj, target, key);
+    });
+    addProxyObject(partitionName, obj);
+    return obj;
+};
+
+var partitionProxyHandler = {
+    get: function get(target, key) {
+        return getPartitionValue(target, key);
+    },
+    set: function set(target, key, value) {
+        return setPartitionValue(target, key, value);
     }
-    return keys;
 };
 
-var isArray = Array.isArray || function (xs) {
-    return {}.toString.call(xs) === '[object Array]';
+var getPartitionProxy = exports.getPartitionProxy = function getPartitionProxy(partitionName, target) {
+    if (proxyDefined()) return new Proxy(target, partitionProxyHandler);
+    return simulateProxy(partitionName, target);
+};
+
+//
+// MDN code
+//
+if (!Array.prototype.find) {
+    Object.defineProperty(Array.prototype, 'find', {
+        value: function value(predicate) {
+            var o = Object(this);
+
+            // 2. Let len be ? ToLength(? Get(O, "length")).
+            var len = o.length >>> 0;
+            // 4. If thisArg was supplied, let T be thisArg; else let T be undefined.
+            var thisArg = arguments[1];
+
+            // 5. Let k be 0.
+            var k = 0;
+
+            // 6. Repeat, while k < len
+            while (k < len) {
+                // a. Let Pk be ! ToString(k).
+                // b. Let kValue be ? Get(O, Pk).
+                // c. Let testResult be ToBoolean(? Call(predicate, T, « kValue, k, O »)).
+                // d. If testResult is true, return kValue.
+                var kValue = o[k];
+                if (predicate.call(thisArg, kValue, k, o)) {
+                    return kValue;
+                }
+                // e. Increase k by 1.
+                k++;
+            }
+
+            // 7. Return undefined.
+            return undefined;
+        }
+    });
+}
+
+if (!Array.prototype.findIndex) {
+    Object.defineProperty(Array.prototype, 'findIndex', {
+        value: function value(predicate) {
+            var o = Object(this);
+
+            // 2. Let len be ? ToLength(? Get(O, "length")).
+            var len = o.length >>> 0;
+
+            // 4. If thisArg was supplied, let T be thisArg; else let T be undefined.
+            var thisArg = arguments[1];
+
+            // 5. Let k be 0.
+            var k = 0;
+
+            // 6. Repeat, while k < len
+            while (k < len) {
+                // a. Let Pk be ! ToString(k).
+                // b. Let kValue be ? Get(O, Pk).
+                // c. Let testResult be ToBoolean(? Call(predicate, T, « kValue, k, O »)).
+                // d. If testResult is true, return k.
+                var kValue = o[k];
+                if (predicate.call(thisArg, kValue, k, o)) {
+                    return k;
+                }
+                // e. Increase k by 1.
+                k++;
+            }
+
+            // 7. Return -1.
+            return -1;
+        }
+    });
+}
+
+/***/ }),
+/* 3 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+/*
+object-assign
+(c) Sindre Sorhus
+@license MIT
+*/
+
+
+/* eslint-disable no-unused-vars */
+var getOwnPropertySymbols = Object.getOwnPropertySymbols;
+var hasOwnProperty = Object.prototype.hasOwnProperty;
+var propIsEnumerable = Object.prototype.propertyIsEnumerable;
+
+function toObject(val) {
+	if (val === null || val === undefined) {
+		throw new TypeError('Object.assign cannot be called with null or undefined');
+	}
+
+	return Object(val);
+}
+
+function shouldUseNative() {
+	try {
+		if (!Object.assign) {
+			return false;
+		}
+
+		// Detect buggy property enumeration order in older V8 versions.
+
+		// https://bugs.chromium.org/p/v8/issues/detail?id=4118
+		var test1 = new String('abc');  // eslint-disable-line no-new-wrappers
+		test1[5] = 'de';
+		if (Object.getOwnPropertyNames(test1)[0] === '5') {
+			return false;
+		}
+
+		// https://bugs.chromium.org/p/v8/issues/detail?id=3056
+		var test2 = {};
+		for (var i = 0; i < 10; i++) {
+			test2['_' + String.fromCharCode(i)] = i;
+		}
+		var order2 = Object.getOwnPropertyNames(test2).map(function (n) {
+			return test2[n];
+		});
+		if (order2.join('') !== '0123456789') {
+			return false;
+		}
+
+		// https://bugs.chromium.org/p/v8/issues/detail?id=3056
+		var test3 = {};
+		'abcdefghijklmnopqrst'.split('').forEach(function (letter) {
+			test3[letter] = letter;
+		});
+		if (Object.keys(Object.assign({}, test3)).join('') !==
+				'abcdefghijklmnopqrst') {
+			return false;
+		}
+
+		return true;
+	} catch (err) {
+		// We don't expect any of the above to throw, but better to be safe.
+		return false;
+	}
+}
+
+module.exports = shouldUseNative() ? Object.assign : function (target, source) {
+	var from;
+	var to = toObject(target);
+	var symbols;
+
+	for (var s = 1; s < arguments.length; s++) {
+		from = Object(arguments[s]);
+
+		for (var key in from) {
+			if (hasOwnProperty.call(from, key)) {
+				to[key] = from[key];
+			}
+		}
+
+		if (getOwnPropertySymbols) {
+			symbols = getOwnPropertySymbols(from);
+			for (var i = 0; i < symbols.length; i++) {
+				if (propIsEnumerable.call(from, symbols[i])) {
+					to[symbols[i]] = from[symbols[i]];
+				}
+			}
+		}
+	}
+
+	return to;
 };
 
 
 /***/ }),
-/* 3 */
+/* 4 */
 /***/ (function(module, exports) {
 
 module.exports = Redux;
 
 /***/ }),
-/* 4 */
+/* 5 */
 /***/ (function(module, exports, __webpack_require__) {
 
 __webpack_require__(0);
