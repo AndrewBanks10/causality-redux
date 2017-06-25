@@ -2,35 +2,34 @@
 
 Causality-redux is an extension to redux that significantly reduces redux and react-redux coding and debugging.
 
-To show how easy causality-redux is to use, consider the example below.
+To show how easy causality-redux is to use, consider the counter example below.
 
 ```
-// First define the store partition as:
+import React from 'react';
+import CausalityRedux from 'causality-redux';
+
+// First define the store partition as below.
 const COUNTER_STATE = 'COUNTER_STATE';
 const reduxCounter = {
     partitionName: COUNTER_STATE,
-    defaultState: { counter: 0 }, // Your required data for this component is defined here with initial values.
-    changerDefinitions: { // causality-redux provides a list of pre-defined changers. Two of them are shown below.
-        'onIncrement': { operation: CausalityRedux.operations.STATE_INCREMENT, impliedArguments: ['counter'] }, // This increments 'counter'
-        'onDecrement': { operation: CausalityRedux.operations.STATE_DECREMENT, impliedArguments: ['counter'] } // This decrements 'counter'
-    }
+    defaultState: { counter: 0 } // This is the state object for the COUNTER_STATE partition.
 }
 CausalityRedux.createStore([reduxCounter]); // Create the causality-redux store and use the store partition above for definitions.
+const counterState = CausalityRedux.store[COUNTER_STATE].partitionState;
 
 // To connect this to a react component, here is an example.
-const CounterForm = ({onIncrement, onDecrement, counter}) => 
+const CounterForm = ({counter}) => 
     <div>
         <div>{`The current counter is ${counter}.`}</div>
-        <button onClick={ () => onIncrement() }>Up</button>
-        <button onClick={ () => onDecrement()}>Down</button>
+        <button onClick={() => counterState.counter++}>Up</button> // Causes a detectable state change to counter in the redux store.
+        <button onClick={() => counterState.counter--}>Down</button> // Causes a detectable state change to counter in the redux store.
     </div>
 // Now wrap the component CounterForm
-const CounterFormCausalityRedux = CausalityRedux.connectChangersAndStateToProps(
+const CounterFormCausalityRedux = CausalityRedux.connectStateToProps(
     CounterForm, // React component to wrap.
     COUNTER_STATE, // State partition
-    ['onIncrement', 'onDecrement'], // This is an array of changers in COUNTER_STATE that you want passed into the props to use for changers.
-    ['counter'] // This is an array of values in COUNTER_STATE that you want passed into the props. Also, only render 
-                // this component when one or more of those values change and update the props with those changes.
+    ['counter'] // This is an array of values in COUNTER_STATE that you want passed into the props. Whenever counter 
+                // changes in the redux store, this component will render with the new value of counter set in the props.
 );
 
 const App = () =>
@@ -41,6 +40,8 @@ const App = () =>
 
 That is all there is to it.
 Note that there are no changers, reducers, dispatching, redux connects or mapStateToProps/mapDispatchToProps definitions.
+The buttons are clicked, the counter value is changed in the redux store then CounterForm is rendered with the new value
+of counter set in the props. So, the new value is shown to the user.
 
 
 ## Benefits of causality-redux
