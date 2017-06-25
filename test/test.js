@@ -1,9 +1,9 @@
-var assert = require('assert');
-var isEqual = require('lodash/isEqual');
-var merge = require('lodash/merge');
-var Redux = require('redux');
+const assert = require('assert');
+const isEqual = require('lodash/isEqual');
+const merge = require('lodash/merge');
+const Redux = require('redux');
 
-var CausalityRedux = require('../lib/causality-redux.js').default;
+const CausalityRedux = require('../lib/causality-redux.js').default;
 
 describe('CausalityRedux definition', function(){
   it('CausalityRedux should exist', function(){
@@ -17,7 +17,7 @@ describe('CausalityRedux definition', function(){
 
 const COMMENTS_STATE = 'Comments';
 
-const onAddComment2 = (comment={author: "", text:''}) => {
+const onAddComment2 = (comment={author: '', text:''}) => {
     return( 
         {
             type: 'onAddComment2',
@@ -39,7 +39,7 @@ const onAddComment3Reducer = (state, action) =>
 const reduxComments = {
     partitionName: COMMENTS_STATE,
     // No type checking of obj
-    defaultState: {items:[], author:'', text: '', idToDelete:"", idToChange:"", authorToChange:"", nextIndex:"", obj:{}},
+    defaultState: {items:[], author:'', text: '', idToDelete:'', idToChange:'', authorToChange:'', nextIndex:'', obj:{}},
     changerDefinitions: {
         'onResetAuthorToDefault': { operation : CausalityRedux.operations.STATE_SETTODEFAULTS, impliedArguments: ['author'] },
         'onAuthorChange': { arguments: ['author'] },
@@ -65,7 +65,7 @@ const reduxComments = {
     }           
 };
 
-const DEMO_STATE = "Demo";
+const DEMO_STATE = 'Demo';
 const reduxDemo = {
     partitionName: DEMO_STATE,
     defaultState: {isLess: true},
@@ -74,7 +74,7 @@ const reduxDemo = {
     }
 };
     
-const COUNTER_STATE = "Counter";
+const COUNTER_STATE = 'Counter';
 const reduxCounter = {
     partitionName: COUNTER_STATE,
     defaultState: {counter: 0},
@@ -84,7 +84,7 @@ const reduxCounter = {
     }
 };
 
-const OUTSIDE_EVENT = "OUTSIDE_EVENT";
+const OUTSIDE_EVENT = 'OUTSIDE_EVENT';
 const causalityChain = {
     partitionName: OUTSIDE_EVENT,
     defaultState: {event:0},
@@ -96,7 +96,7 @@ const causalityChain = {
 //
 // Test initial state
 //
-let hydrateState = {Demo:{isLess: false}, Counter: {counter: 1}, Comments: {items:[], author:'', text: 'xxxx', idToDelete:"zzz", idToChange:"", authorToChange:"", nextIndex:"", obj:{}}};
+const hydrateState = {Demo:{isLess: false}, Counter: {counter: 1}, Comments: {items:[], author:'', text: 'xxxx', idToDelete:'zzz', idToChange:'', authorToChange:'', nextIndex:'', obj:{}}};
      
 const store = CausalityRedux.createStore([reduxComments, reduxCounter], hydrateState);
 
@@ -118,7 +118,7 @@ Object.keys(hydrateState).forEach( key => {
     stateObj[key] = CausalityRedux.merge(stateObj[key], hydrateState[key]);
 });
 const theState = CausalityRedux.reduxStore.getState();
-let hydrateStateOK = isEqual(theState, stateObj);
+const hydrateStateOK = isEqual(theState, stateObj);
 
 
 describe('Test that initial state can be set.', function(){
@@ -128,18 +128,18 @@ describe('Test that initial state can be set.', function(){
 });
 
 
-let shouldFail = (label, func, ...rest) => {
+const shouldFail = (label, func, ...rest) => {
     try {
-        func.apply(null, rest);
-        return label + ' failed to detect error condition.';
+        func(...rest);
+        return `${label  } failed to detect error condition.`;
     } catch(m) {
         return '';
     }
 };
 
 function testArgument(...rest) {
-    var errorStr =  shouldFail.apply( null, rest );
-    it(rest[0] + ' detected', function(){
+    const errorStr =  shouldFail(...rest);
+    it(`${rest[0]  } detected`, function(){
         assert(errorStr ==='');
     });
 }
@@ -148,7 +148,7 @@ function subscriberTest() {
 }
 
 describe('Verify argument errors are detected.', function(){
-    testArgument( 'onResetAuthorToDefault invalid args, should be 0 and had 1', store[COMMENTS_STATE].onResetAuthorToDefault, "");
+    testArgument( 'onResetAuthorToDefault invalid args, should be 0 and had 1', store[COMMENTS_STATE].onResetAuthorToDefault, '');
     testArgument( 'onToggleIsLess invalid args, should be 0 and had 1', store[DEMO_STATE].onToggleIsLess, false);
     testArgument( 'onAddComment1 missing text argument', store[COMMENTS_STATE].onAddComment, {'author': 'this'} );
     testArgument( 'onAddComment2 author wrong type', store[COMMENTS_STATE].onAddComment, {'author': 0, 'text':'ooo'} );
@@ -183,21 +183,21 @@ describe('Verify argument errors are detected.', function(){
     testArgument('Invalid onStoreCreated no listener.', CausalityRedux.onStoreCreated);
 });
 
-let commentsState = store[COMMENTS_STATE];
-let outsideEvent = store[OUTSIDE_EVENT];
-let demoState = store[DEMO_STATE];
-let counterState = store[COUNTER_STATE];
+const commentsState = store[COMMENTS_STATE];
+const outsideEvent = store[OUTSIDE_EVENT];
+const demoState = store[DEMO_STATE];
+const counterState = store[COUNTER_STATE];
 
-var listenersCalled = [];
+let listenersCalled = [];
 
 function resetListeners() {
     listenersCalled = [];
 }
 
 function verifyListeners(expectedListeners) {
-    var str = "";
+    const str = '';
     expectedListeners.forEach( entry1 => {
-        var isIn = listenersCalled.some( entry2 => 
+        const isIn = listenersCalled.some( entry2 => 
             entry1 === entry2
         );
         if ( !isIn )
@@ -205,7 +205,7 @@ function verifyListeners(expectedListeners) {
     });
     
     listenersCalled.forEach( entry1 => {
-        var isIn = expectedListeners.some( entry2 => 
+        const isIn = expectedListeners.some( entry2 => 
             entry1 === entry2
         );
         if ( !isIn )
@@ -217,7 +217,7 @@ function verifyListeners(expectedListeners) {
 }
 
 function verifyStateAction( description, actionArg, toCompare, strListener, strToCompareError) {
-    let compareOK = isEqual(actionArg, toCompare);
+    const compareOK = isEqual(actionArg, toCompare);
     describe(description, function(){
         it(strToCompareError, function(){
             assert(compareOK);
@@ -225,7 +225,7 @@ function verifyStateAction( description, actionArg, toCompare, strListener, strT
     }); 
 
     describe(`Verifying only the listener ${strListener} was called.`, function(){
-        let errStr = verifyListeners([strListener]);
+        const errStr = verifyListeners([strListener]);
         it(`Only the listener ${strListener} was called.`, function(){
             assert(errStr === '');
         });
@@ -233,7 +233,7 @@ function verifyStateAction( description, actionArg, toCompare, strListener, strT
 } 
 
 function verifyStateAction2( description, actionArg, toCompare, strToCompareError) {
-    let compareOK = isEqual(actionArg, toCompare);
+    const compareOK = isEqual(actionArg, toCompare);
     it(strToCompareError, function(){
         assert(compareOK);
     });
@@ -242,75 +242,75 @@ function verifyStateAction2( description, actionArg, toCompare, strToCompareErro
 //
 // Listeners. It will be verified that the apporopriate listener was called based on the state change.
 //
-var gotItems;
+let gotItems;
 function listenerCommentItems(state) {
     listenersCalled.push('listenerCommentItems');
     gotItems = state.items;
 }
-var unsubscriber1 = commentsState.subscribe(listenerCommentItems, ['items']); 
+const unsubscriber1 = commentsState.subscribe(listenerCommentItems, ['items']); 
 
-var author;
+let author;
 function listenerCommentAuthor(state) {
     listenersCalled.push('listenerCommentAuthor');
     author = state.author;
 }
-var unsubscriber2 = commentsState.subscribe(listenerCommentAuthor, ['author']); 
+const unsubscriber2 = commentsState.subscribe(listenerCommentAuthor, ['author']); 
  
-var text;
+let text;
 function listenerCommentText(state) {
     listenersCalled.push('listenerCommentText');
     text = state.text;
 }
-var unsubscriber3 = commentsState.subscribe(listenerCommentText, ['text']); 
+const unsubscriber3 = commentsState.subscribe(listenerCommentText, ['text']); 
 
-var idToDelete;
+let idToDelete;
 function listenerCommentidToDelete(state) {
     listenersCalled.push('listenerCommentidToDelete');
     idToDelete = state.idToDelete;
 }
-var unsubscriber4 = commentsState.subscribe(listenerCommentidToDelete, ['idToDelete']); 
+const unsubscriber4 = commentsState.subscribe(listenerCommentidToDelete, ['idToDelete']); 
 
-var idToChange;
+let idToChange;
 function listenerCommentidToChange(state) {
     listenersCalled.push('listenerCommentidToChange');
     idToChange = state.idToChange;
 }
-var unsubscriber5 = commentsState.subscribe(listenerCommentidToChange, ['idToChange']); 
+const unsubscriber5 = commentsState.subscribe(listenerCommentidToChange, ['idToChange']); 
 
-var authorToChange;
+let authorToChange;
 function listenerCommentauthorToChange(state) {
     listenersCalled.push('listenerCommentauthorToChange');
     authorToChange = state.authorToChange;
 }
-var unsubscriber6 = commentsState.subscribe(listenerCommentauthorToChange, ['authorToChange']); 
+const unsubscriber6 = commentsState.subscribe(listenerCommentauthorToChange, ['authorToChange']); 
 
-var obj;
+let obj;
 function listenerCommentobj(state) {
     listenersCalled.push('listenerCommentobj');
     obj = state.obj;
 }
-var unsubscriber7 = commentsState.subscribe(listenerCommentobj, ['obj']); 
+const unsubscriber7 = commentsState.subscribe(listenerCommentobj, ['obj']); 
 
-var isLess;
+let isLess;
 function listenerIsLess(state) {
     listenersCalled.push('listenerIsLess');
     isLess = state.isLess;
 }
-var unsubscriber8 = demoState.subscribe(listenerIsLess, ['isLess']); 
+const unsubscriber8 = demoState.subscribe(listenerIsLess, ['isLess']); 
 
-var counter;
+let counter;
 function listenerCounter(state) {
     listenersCalled.push('listenerCounter');
     counter = state.counter;
 }
-var unsubscriber9 = counterState.subscribe(listenerCounter, ['counter']); 
+const unsubscriber9 = counterState.subscribe(listenerCounter, ['counter']); 
 
-var outside_event;
+let outside_event;
 function listenerOutsideEvent(...args) {
     listenersCalled.push('listenerOutsideEvent');
     outside_event = args;
 }
-var unsubscriber10 = outsideEvent.subscribe(listenerOutsideEvent, ['onOutside'], 'listenerOutsideEvent');  
+const unsubscriber10 = outsideEvent.subscribe(listenerOutsideEvent, ['onOutside'], 'listenerOutsideEvent');  
 //
 // End Listeners
 //
@@ -319,16 +319,16 @@ var unsubscriber10 = outsideEvent.subscribe(listenerOutsideEvent, ['onOutside'],
 //
 // test CausalityRedux.operations.STATE_FUNCTION_CALL 
 //
-var argument = [4, {event:0}];
+let argument = [4, {event:0}];
 outsideEvent.onOutside(argument[0]);
-verifyStateAction( "test CausalityRedux.operations.STATE_FUNCTION_CALL on OUTSIDE_EVENT count", argument, outside_event, 'listenerOutsideEvent', 'outside_event set to correct result');
+verifyStateAction( 'test CausalityRedux.operations.STATE_FUNCTION_CALL on OUTSIDE_EVENT count', argument, outside_event, 'listenerOutsideEvent', 'outside_event set to correct result');
 
 //
 // test setState on author
 //
 argument = 'author2';
 commentsState.setState({ author: argument });
-verifyStateAction( "test setState", argument, author, 'listenerCommentAuthor', 'author set to correct result');
+verifyStateAction( 'test setState', argument, author, 'listenerCommentAuthor', 'author set to correct result');
 
 //
 // Test the setState and getState proxies.
@@ -336,14 +336,14 @@ verifyStateAction( "test setState", argument, author, 'listenerCommentAuthor', '
 argument = 'author3';
 commentsState.partitionState.author = argument;
 
-verifyStateAction( "test getState/setState proxies", commentsState.partitionState.author, argument, 'listenerCommentAuthor', 'author set to correct result');
+verifyStateAction( 'test getState/setState proxies', commentsState.partitionState.author, argument, 'listenerCommentAuthor', 'author set to correct result');
 
 //
 // test CausalityRedux.operations.STATE_COPY on author
 //
 argument = 'author1';
 commentsState.onAuthorChange(argument);
-verifyStateAction( "test CausalityRedux.operations.STATE_COPY on author", argument, author, 'listenerCommentAuthor', 'author set to correct result');
+verifyStateAction( 'test CausalityRedux.operations.STATE_COPY on author', argument, author, 'listenerCommentAuthor', 'author set to correct result');
     
 
 //
@@ -351,7 +351,7 @@ verifyStateAction( "test CausalityRedux.operations.STATE_COPY on author", argume
 //
 argument = 'text1';
 commentsState.onTextChange(argument);
-verifyStateAction( "test CausalityRedux.operations.STATE_COPY on text", argument, text, 'listenerCommentText', 'text set to correct result');
+verifyStateAction( 'test CausalityRedux.operations.STATE_COPY on text', argument, text, 'listenerCommentText', 'text set to correct result');
 
     
 //
@@ -359,7 +359,7 @@ verifyStateAction( "test CausalityRedux.operations.STATE_COPY on text", argument
 //
 argument = 'id1';
 commentsState.onIdChange(argument);
-verifyStateAction( "test CausalityRedux.operations.STATE_COPY on idToDelete", argument, idToDelete, 'listenerCommentidToDelete', 'idToDelete set to correct result');
+verifyStateAction( 'test CausalityRedux.operations.STATE_COPY on idToDelete', argument, idToDelete, 'listenerCommentidToDelete', 'idToDelete set to correct result');
    
     
 //
@@ -367,7 +367,7 @@ verifyStateAction( "test CausalityRedux.operations.STATE_COPY on idToDelete", ar
 //
 argument = 'id1';
 commentsState.onIdChangeForChange(argument);
-verifyStateAction( "test CausalityRedux.operations.STATE_COPY on idToChange", argument, idToChange, 'listenerCommentidToChange', 'idToChange set to correct result');
+verifyStateAction( 'test CausalityRedux.operations.STATE_COPY on idToChange', argument, idToChange, 'listenerCommentidToChange', 'idToChange set to correct result');
 
     
 //
@@ -375,7 +375,7 @@ verifyStateAction( "test CausalityRedux.operations.STATE_COPY on idToChange", ar
 //
 argument = 'authorx';
 commentsState.onAuthorChangeForChange(argument);
-verifyStateAction( "test CausalityRedux.operations.STATE_COPY on authorToChange", argument, authorToChange, 'listenerCommentauthorToChange', 'authorToChange set to correct result');
+verifyStateAction( 'test CausalityRedux.operations.STATE_COPY on authorToChange', argument, authorToChange, 'listenerCommentauthorToChange', 'authorToChange set to correct result');
 
    
 //
@@ -383,21 +383,21 @@ verifyStateAction( "test CausalityRedux.operations.STATE_COPY on authorToChange"
 //
 argument = {item: 'authorx1'};
 commentsState.onObjectCopy(argument);
-verifyStateAction( "test CausalityRedux.operations.STATE_COPY on obj", argument, obj, 'listenerCommentobj', 'obj set to correct result');
+verifyStateAction( 'test CausalityRedux.operations.STATE_COPY on obj', argument, obj, 'listenerCommentobj', 'obj set to correct result');
 
 //
 // test CausalityRedux.operations.STATE_COPY on obj
 //
 argument = {item: 'authorx1', anotherArg: 'anotherArg'};
 commentsState.onObjectCopy(argument);
-verifyStateAction( "test CausalityRedux.operations.STATE_COPY on obj, 2nd arg new", argument, obj, 'listenerCommentobj', 'obj set to correct result');
+verifyStateAction( 'test CausalityRedux.operations.STATE_COPY on obj, 2nd arg new', argument, obj, 'listenerCommentobj', 'obj set to correct result');
  
 //
 // test CausalityRedux.operations.STATE_COPY on obj
 //
 argument = {item: 'authorx1', anotherArg: 'anotherArg2'};
 commentsState.onObjectCopy(argument);
-verifyStateAction( "test CausalityRedux.operations.STATE_COPY on obj, 2nd arg change", argument, obj, 'listenerCommentobj', 'obj set to correct result');
+verifyStateAction( 'test CausalityRedux.operations.STATE_COPY on obj, 2nd arg change', argument, obj, 'listenerCommentobj', 'obj set to correct result');
 
 
 //
@@ -405,14 +405,14 @@ verifyStateAction( "test CausalityRedux.operations.STATE_COPY on obj, 2nd arg ch
 //
 argument = {item: 'authorx1', anotherArg: 'anotherArg2', anotherArg2: 'anotherArg3'};
 commentsState.onObjectMerge({anotherArg2: 'anotherArg3'});
-verifyStateAction( "test CausalityRedux.operations.STATE_OBJECT_MERGE on obj, 2nd arg change", argument, obj, 'listenerCommentobj', 'obj set to correct result');
+verifyStateAction( 'test CausalityRedux.operations.STATE_OBJECT_MERGE on obj, 2nd arg change', argument, obj, 'listenerCommentobj', 'obj set to correct result');
 
 //
 // test CausalityRedux.operations.STATE_INCREMENT on COUNTER_STATE counter
 //
 argument = counterState.getState().counter + 1;
 counterState.onIncrement();
-verifyStateAction( "test CausalityRedux.operations.STATE_INCREMENT on COUNTER_STATE ", argument, counter, 'listenerCounter', 'counter set to correct result');
+verifyStateAction( 'test CausalityRedux.operations.STATE_INCREMENT on COUNTER_STATE ', argument, counter, 'listenerCounter', 'counter set to correct result');
 
 
 //
@@ -420,24 +420,24 @@ verifyStateAction( "test CausalityRedux.operations.STATE_INCREMENT on COUNTER_ST
 //
 argument = counterState.getState().counter - 1;
 counterState.onDecrement();
-verifyStateAction( "test CausalityRedux.operations.STATE_DECREMENT on COUNTER_STATE ", argument, counter, 'listenerCounter', 'counter set to correct result');
+verifyStateAction( 'test CausalityRedux.operations.STATE_DECREMENT on COUNTER_STATE ', argument, counter, 'listenerCounter', 'counter set to correct result');
 
 //
 // test CausalityRedux.operations.STATE_TOGGLE on DEMO_STATE isLess
 //
 argument = !demoState.getState().isLess;
 demoState.onToggleIsLess();
-verifyStateAction( "test CausalityRedux.operations.STATE_TOGGLE on DEMO_STATE isLess", argument, isLess, 'listenerIsLess', 'isLess set to correct result');
+verifyStateAction( 'test CausalityRedux.operations.STATE_TOGGLE on DEMO_STATE isLess', argument, isLess, 'listenerIsLess', 'isLess set to correct result');
 
 
 //
 // test CausalityRedux.operations.STATE_ARRAY_ADD
 //
 let expectedItems = [...commentsState.getState().items];
-expectedItems.push({'author': 'author', 'text':'text', id:"0"});
+expectedItems.push({'author': 'author', 'text':'text', id:'0'});
 argument = {'author': 'author', 'text':'text'};
 commentsState.onAddComment(argument);
-verifyStateAction( "test CausalityRedux.operations.STATE_ARRAY_ADD", expectedItems, gotItems, 'listenerCommentItems', 'items array are equal');
+verifyStateAction( 'test CausalityRedux.operations.STATE_ARRAY_ADD', expectedItems, gotItems, 'listenerCommentItems', 'items array are equal');
 
 
   
@@ -448,7 +448,8 @@ expectedItems = [...commentsState.getState().items];
 expectedItems[0] = {author: 'authorx', text: 'text', id: '0'};
 argument = {'author': 'authorx'};
 commentsState.onChangeComment('0', argument);
-verifyStateAction( "test CausalityRedux.operations.STATE_ARRAY_ENTRY_MERGE", expectedItems, gotItems, 'listenerCommentItems', 'items array are equal');  
+
+verifyStateAction( 'test CausalityRedux.operations.STATE_ARRAY_ENTRY_MERGE', expectedItems, gotItems, 'listenerCommentItems', 'items array are equal');  
 
 //
 // test CausalityRedux.operations.STATE_ARRAY_ENTRY_MERGE new merge
@@ -457,7 +458,7 @@ expectedItems = [...commentsState.getState().items];
 argument = {'x': 200};
 merge(expectedItems[0], argument);
 commentsState.onSetVideoUserDimensions(0, argument);
-verifyStateAction( "test CausalityRedux.operations.STATE_ARRAY_ENTRY_MERGE new merge", expectedItems, gotItems, 'listenerCommentItems', 'items array are equal'); 
+verifyStateAction( 'test CausalityRedux.operations.STATE_ARRAY_ENTRY_MERGE new merge', expectedItems, gotItems, 'listenerCommentItems', 'items array are equal'); 
 
 //
 // test CausalityRedux.operations.STATE_ARRAY_ENTRY_MERGE existing merge
@@ -466,7 +467,7 @@ expectedItems = [...commentsState.getState().items];
 argument = {'x': 300};
 merge(expectedItems[0], argument);
 commentsState.onSetVideoUserDimensions(0, argument);
-verifyStateAction( "test CausalityRedux.operations.STATE_ARRAY_ENTRY_MERGE existing merge", expectedItems, gotItems, 'listenerCommentItems', 'items array are equal');    
+verifyStateAction( 'test CausalityRedux.operations.STATE_ARRAY_ENTRY_MERGE existing merge', expectedItems, gotItems, 'listenerCommentItems', 'items array are equal');    
 
 //
 // test CausalityRedux.operations.STATE_ARRAY_DELETE
@@ -474,16 +475,16 @@ verifyStateAction( "test CausalityRedux.operations.STATE_ARRAY_ENTRY_MERGE exist
 expectedItems = [...commentsState.getState().items];
 expectedItems.splice(0, 1);
 commentsState.onDeleteComment(0);
-verifyStateAction( "test CausalityRedux.operations.STATE_ARRAY_DELETE", expectedItems, gotItems, 'listenerCommentItems', 'items array not are equal');
+verifyStateAction( 'test CausalityRedux.operations.STATE_ARRAY_DELETE', expectedItems, gotItems, 'listenerCommentItems', 'items array not are equal');
   
 //
 // test CausalityRedux.operations.STATE_ARRAY_ADD on custom changer and reducer
 //
 expectedItems = [...commentsState.getState().items];
-expectedItems.push({'author': 'author', 'text':'text', id:"1"});
-argument = {'author': 'author', 'text':'text', id:"1"};
+expectedItems.push({'author': 'author', 'text':'text', id:'1'});
+argument = {'author': 'author', 'text':'text', id:'1'};
 commentsState.onAddComment2(argument);
-verifyStateAction( "test CausalityRedux.operations.STATE_ARRAY_ADD on custom changer and reducer", expectedItems, gotItems, 'listenerCommentItems', 'items array are equal');
+verifyStateAction( 'test CausalityRedux.operations.STATE_ARRAY_ADD on custom changer and reducer', expectedItems, gotItems, 'listenerCommentItems', 'items array are equal');
 
 
 //
@@ -491,7 +492,7 @@ verifyStateAction( "test CausalityRedux.operations.STATE_ARRAY_ADD on custom cha
 //
 expectedItems = [0];
 commentsState.onArrayChange(expectedItems);
-verifyStateAction( "test CausalityRedux.operations.STATE_COPY", expectedItems, gotItems, 'listenerCommentItems', 'items array are equal');
+verifyStateAction( 'test CausalityRedux.operations.STATE_COPY', expectedItems, gotItems, 'listenerCommentItems', 'items array are equal');
  
 
 //
@@ -499,7 +500,7 @@ verifyStateAction( "test CausalityRedux.operations.STATE_COPY", expectedItems, g
 //
 argument = '';
 commentsState.onResetAuthorToDefault();
-verifyStateAction( "test CausalityRedux.operations.STATE_SETTODEFAULTS on author", argument, author, 'listenerCommentAuthor', 'author set to default');
+verifyStateAction( 'test CausalityRedux.operations.STATE_SETTODEFAULTS on author', argument, author, 'listenerCommentAuthor', 'author set to default');
 
 
 //
@@ -523,25 +524,25 @@ function subscriberTestPassedString(subscriberName) {
     return `Subscriber ${subscriberName} is not called, passed.`;
 }
 
-describe('Testiing unsubscribers', function(){
+describe('Testing unsubscribers', function(){
     it(subscriberTestPassedString('listenerCommentAuthor'), function(){
-        commentsState.onAuthorChange("author11");
+        commentsState.onAuthorChange('author11');
         assert(listenersCalled.length === 0);
     });
     it(subscriberTestPassedString('listenerCommentText'), function(){
-        commentsState.onTextChange("test11");
+        commentsState.onTextChange('test11');
         assert(listenersCalled.length === 0);
     });
     it(subscriberTestPassedString('listenerCommentidToDelete'), function(){
-        commentsState.onIdChange("id11");
+        commentsState.onIdChange('id11');
         assert(listenersCalled.length === 0);
     });
     it(subscriberTestPassedString('listenerCommentidToChange'), function(){
-        commentsState.onIdChangeForChange("id12");
+        commentsState.onIdChangeForChange('id12');
         assert(listenersCalled.length === 0);
     });
     it(subscriberTestPassedString('listenerCommentauthorToChange'), function(){
-        commentsState.onAuthorChangeForChange("authorx11");
+        commentsState.onAuthorChangeForChange('authorx11');
         assert(listenersCalled.length === 0);
     });
     it(subscriberTestPassedString('listenerCommentobj'), function(){
@@ -556,11 +557,12 @@ describe('Testiing unsubscribers', function(){
         demoState.onToggleIsLess();
         assert(listenersCalled.length === 0);
     });
-    it(subscriberTestPassedString('listenerCommentItems'), function(){
+
+    it(subscriberTestPassedString('listenerCommentItems'), function () {
         commentsState.onChangeComment(0, {'author': 'authorx123'});
         assert(listenersCalled.length === 0);
     });
-    
+   
 });
 
 //
@@ -614,7 +616,7 @@ const reduxPluginCounter = {
 CausalityRedux.addPartitions(reduxPluginCounter);
 describe('Plugin test', function(){
  
-    verifyStateAction2("test plugin incrementValidatePartitionEntry called", incrementValidatePartitionEntryCalled, true, 'incrementValidatePartitionEntry called.');
+    verifyStateAction2('test plugin incrementValidatePartitionEntry called', incrementValidatePartitionEntryCalled, true, 'incrementValidatePartitionEntry called.');
 
     let gotPluginCounter;
     let gotPluginCounter2;
@@ -624,20 +626,20 @@ describe('Plugin test', function(){
     }
 
     CausalityRedux.store[COUNTER_STATE_PLUGIN].subscribe(testPlugin, ['counter', 'counter2'], 'testPlugin');
-    let expectedPluginCounter = 0;
+    const expectedPluginCounter = 0;
     let expectedPluginCounter2 = 2;
     incrementValidateChangerArgumentsCalled = false;
     CausalityRedux.store[COUNTER_STATE_PLUGIN].onIncrement();
-    verifyStateAction2( "test plugin", expectedPluginCounter2, gotPluginCounter2, 'counter2 set correctly.');
-    verifyStateAction2( "test plugin", expectedPluginCounter, gotPluginCounter, 'counter set correctly.');
-    verifyStateAction2("test plugin incrementValidateChangerArguments called", incrementValidateChangerArgumentsCalled, true, 'incrementValidateChangerArguments called.');
+    verifyStateAction2( 'test plugin', expectedPluginCounter2, gotPluginCounter2, 'counter2 set correctly.');
+    verifyStateAction2( 'test plugin', expectedPluginCounter, gotPluginCounter, 'counter set correctly.');
+    verifyStateAction2('test plugin incrementValidateChangerArguments called', incrementValidateChangerArgumentsCalled, true, 'incrementValidateChangerArguments called.');
 
     incrementValidateChangerArgumentsCalled = false;
     ++expectedPluginCounter2;
     CausalityRedux.store[COUNTER_STATE_PLUGIN].onIncrement();
-    verifyStateAction2( "test plugin2", expectedPluginCounter2, gotPluginCounter2, 'counter2 set correctly.');
-    verifyStateAction2( "test plugin2", expectedPluginCounter, gotPluginCounter, 'counter set correctly.');
-    verifyStateAction2("test plugin incrementValidateChangerArguments called", incrementValidateChangerArgumentsCalled, true, 'incrementValidateChangerArguments called.');
+    verifyStateAction2( 'test plugin2', expectedPluginCounter2, gotPluginCounter2, 'counter2 set correctly.');
+    verifyStateAction2( 'test plugin2', expectedPluginCounter, gotPluginCounter, 'counter set correctly.');
+    verifyStateAction2('test plugin incrementValidateChangerArguments called', incrementValidateChangerArgumentsCalled, true, 'incrementValidateChangerArguments called.');
 });
 
 
