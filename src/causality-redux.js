@@ -1,8 +1,8 @@
 ﻿/** @preserve © 2017 Andrew Banks ALL RIGHTS RESERVED */
 import { createStore as reduxCreateStore } from 'redux';
-import { handleAddKeysToProxyObject, getPartitionProxy, shallowCopy, objectAssign, getKeys, shallowEqual } from './util';
+import { handleAddKeysToProxyObject, getPartitionProxy, objectAssign, getKeys, shallowEqual } from './util';
 
-export const operations = {
+const operations = {
     STATE_COPY:                 1,
     STATE_ARRAY_ADD:            2,
     STATE_ARRAY_DELETE:         3,
@@ -87,7 +87,7 @@ if (typeof createReduxStore === undefinedString) {
 
 const error = (msg) => { throw new Error(`CausalityRedux: ${msg}`); };
 
-export const merge = typeof Object.assign === 'function' ? Object.assign : objectAssign;   
+const merge = typeof Object.assign === 'function' ? Object.assign : objectAssign;   
 
 const objectType = (obj) => Object.prototype.toString.call(obj).slice(8, -1);
 
@@ -240,18 +240,6 @@ const validateStateEntry = (stateEntry) => {
         error(`defaultState missing from entry: ${stateEntry.partitionName}`);
 };
 
-const partitionProxyHandler = {
-    get(target, key) {
-        const toClone = target.getState()[key];
-        return toClone instanceof Object ? shallowCopy(toClone) : toClone;
-    },
-    set(target, key, value) {
-        if (target.getState()[key] !== value)
-            target.setState({[key]: value});
-        return true;
-    }
-};
-
 // Each partition has access to the changers and its own subscribe, getState and setState functions
 // with a partitionState proxy.
 const setupPartition = (store, stateEntry) => {
@@ -321,7 +309,7 @@ const buildStateEntryChangersAndReducers = (entry) => {
     };
 
     // Validates a changer entry in a partition definition.        
-    const validateChangerArg = (changerArg) => {
+    const validateChangerArg = (o, changerArg) => {
         getKeys(changerArg).forEach(tag => {
             const valid = changerDefinitionKeys.some(keyName =>
                 tag === keyName
@@ -575,7 +563,7 @@ const buildStateEntryChangersAndReducers = (entry) => {
         if (typeof changerArg === undefinedString)
             error(`Changer definition argument for ${o} must be defined`);
         
-        validateChangerArg(changerArg);
+        validateChangerArg(o, changerArg);
 
         // Make the changer            
         entry.changers[o] = buildChanger(entry.partitionName, o, changerArg);
@@ -732,7 +720,7 @@ function init(partitionDefinitions, preloadedState, enhancer, options={}) {
         if ( shallowEqual( newState[action.partitionName], state[action.partitionName] ) )
             return state;
         
-        handleAddKeysToProxyObject(action.partitionName, state, newState);
+        handleAddKeysToProxyObject(_store, action.partitionName, state, newState);
         
         indicateStateChange(action.partitionName, action.type, action.operation, state[action.partitionName], newState[action.partitionName], action.changerName, action.theirArgs);
 
@@ -830,7 +818,7 @@ const verifyPlugin = (plugin) => {
 };
 
 // creates the causality-redux store.
-export function createStore(partitionDefinitions = [], preloadedState, enhancer, options) {
+function createStore(partitionDefinitions = [], preloadedState, enhancer, options) {
     if (!Array.isArray(partitionDefinitions))
         partitionDefinitions = [partitionDefinitions];
     // This allows createStore to be called more than once for hot re-loading or other reasons.
@@ -860,7 +848,7 @@ export function createStore(partitionDefinitions = [], preloadedState, enhancer,
 }
 
 // Add partitions. This allows partitions to be added before and after createStore
-export function addPartitions(partitionDefinitions) {
+function addPartitions(partitionDefinitions) {
     if (!Array.isArray(partitionDefinitions))
         partitionDefinitions = [partitionDefinitions];
     partitionDefinitions = partitionDefinitions.filter(entry =>
@@ -895,7 +883,7 @@ export function addPartitions(partitionDefinitions) {
 // .partitionDefinitions [Optional] - The state partitions defined with the plugin.
 // .onStoreCreated [Optional] - Callback for onStoreCreated
 //
-export function addPlugins(pluginObjs) {
+function addPlugins(pluginObjs) {
     if (!Array.isArray(pluginObjs))
         pluginObjs = [pluginObjs];
     pluginObjs = pluginObjs.filter(entry =>
@@ -913,7 +901,7 @@ export function addPlugins(pluginObjs) {
 }
 
 // Subscribe to changes in a partition of the store. This can be done before and after createStore.
-export function subscribe(partitionName, listener, arrKeys, listenerName) {
+function subscribe(partitionName, listener, arrKeys, listenerName) {
     if (typeof listener !== 'function')
         error('subscribe listener argument is not a function.');
     if (!Array.isArray(arrKeys))
@@ -928,7 +916,7 @@ export function subscribe(partitionName, listener, arrKeys, listenerName) {
     
 // Use this to initialize your business logic when you don't know when the store is created.
 // This way, when the completionListener is called you can guarantee that your store partition is defined. 
-export function onStoreCreated(completionListener) {
+function onStoreCreated(completionListener) {
     if ( typeof completionListener !== 'function' )
         error('onStoreCreated argument is not a function.');
     if ( _store !== null ) 

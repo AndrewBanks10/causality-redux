@@ -1,4 +1,4 @@
-import objectAssign from 'object-assign';
+const objectAssign = require('object-assign');
 export { objectAssign };
 
 const getKeysWOSymbols = (obj) => {
@@ -56,11 +56,11 @@ const addProxyObject = (partitionName, obj) =>
 const proxyDefined = () =>
     typeof Proxy !== 'undefined';
 
-export const handleAddKeysToProxyObject = (partitionName, currentState, newState) => {
+export const handleAddKeysToProxyObject = (store, partitionName, currentState, newState) => {
     if (proxyDefined())
         return;
-    getKeys(newState).forEach(key => {
-        if (typeof currentState[key] === 'undefined')
+    getKeys(newState[partitionName]).forEach(key => {
+        if (typeof currentState[partitionName][key] === 'undefined')
             defineProxyGetSet(proxyObjects[partitionName], store[partitionName], key);
     });
 };
@@ -183,3 +183,5 @@ if (!Array.prototype.findIndex) {
     }
   });
 }
+
+

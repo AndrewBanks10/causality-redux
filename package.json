@@ -4,12 +4,20 @@
   "description": "A causality based extension of redux",
   "main": "index.js",
   "scripts": {
-    "test": "mocha --reporter spec test",
-    "debugtest": "mocha --debug-brk --inspect ./test/test.js",
+    "test:lib": "mocha --reporter spec --require babel-register --require ./test/setup.js ./test/**/*.js",
+    "test:min": "cross-env NODE_ENV=production mocha --reporter spec --require babel-register --require ./test/setup.js ./test/**/*.js",
+    "test": "npm run test:min && npm run test:lib",
+    "build:lib": "webpack --config devtools/webpack.config.lib.js",
+    "build:es": "webpack --config devtools/webpack.config.dist.js",
+    "build:min": "cross-env NODE_ENV=production webpack --config devtools/webpack.config.dist.min.js",
     "build": "npm run build:lib && npm run build:es && npm run build:min",
-    "build:lib": "webpack --config webpack.config-lib.js",
-    "build:es": "webpack --config webpack.config-dist.js",
-    "build:min": "cross-env NODE_ENV=production webpack --config webpack.config-dist-min.js"
+    "lint": "eslint src/**",
+
+    "//": "vscode-library-template specific scripts, see https://github.com/AndrewBanks10/vscode-library-template",
+    "builddll:dev": "webpack --colors --config devtools/webpack.config.dlllib.dev.js",
+    "clean": "rimraf temp",
+    "buildmochadebug": "npm run clean && babel ./test/**/*.js --out-dir temp --source-maps=true && babel ./src/**/*.js --out-dir temp --source-maps=true",
+    "start": "cross-env NODE_ENV=development node devtools/devServer.js"
   },
   "author": {
     "name": "Andrew Banks",
@@ -20,12 +28,11 @@
     "babel-core": "^6.24.1",
     "babel-loader": "^7.0.0",
     "babel-preset-es2015": "^6.24.1",
-    "babel-preset-react": "^6.24.1",
     "webpack": "^2.5.1",
     "mocha": "^3.3.0",
-    "webpack-closure-compiler": "^2.1.4",
     "cross-env": "^5.0.0",
-    "lodash": "^4.17.4"
+    "lodash": "^4.17.4",
+    "rimraf": "^2.6.1",
   },
   "dependencies": {
     "object-assign": "^4.1.1",

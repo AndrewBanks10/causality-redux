@@ -1,9 +1,23 @@
+//
+// Handle mocha testing.
+//
 const assert = require('assert');
 const isEqual = require('lodash/isEqual');
 const merge = require('lodash/merge');
-const Redux = require('redux');
 
-const CausalityRedux = require('../lib/causality-redux.js').default;
+let CausalityRedux;
+// Use the source when testing with the debugger. This is "Debug Mocha Tests" entry.
+if (process.env.NODE_ENV === 'debugTesting')
+    CausalityRedux = require('../src/causality-redux.js').default;
+// Test the minimized version. "Run Production Tests" entry.
+else if (process.env.NODE_ENV === 'production') {
+    global['Redux'] = require('redux'); 
+    require('../dist/causality-redux.min'); 
+    CausalityRedux = global['CausalityRedux'];
+    delete global['CausalityRedux'];
+// Test the lib version. "Run Mocha Tests" entry.
+} else
+    CausalityRedux = require('../lib/causality-redux.js').default;
 
 describe('CausalityRedux definition', function(){
   it('CausalityRedux should exist', function(){
@@ -29,6 +43,7 @@ const onAddComment2Reducer = (state, action) =>
     merge({}, state, { items: [...state.items, action.comment] });
     
 const onAddComment3 = (comment = { author: '', text: '' }) => {
+    comment;
     return 1;
 };
 const onAddComment3Reducer = (state, action) =>
@@ -195,7 +210,6 @@ function resetListeners() {
 }
 
 function verifyListeners(expectedListeners) {
-    const str = '';
     expectedListeners.forEach( entry1 => {
         const isIn = listenersCalled.some( entry2 => 
             entry1 === entry2
@@ -577,7 +591,7 @@ const incrementValidateChangerArguments = (...theirArgs) => {
     incrementValidateChangerArgumentsCalled = true;
     // Verify arguments if there are any
     if (theirArgs.length !== 0)
-        error(`Invalid arguments for pluginId ${incrementPluginId.toString()}.`);
+        throw new Error(`Invalid arguments for pluginId ${incrementPluginId.toString()}.`);
 };
 
 const incrementReducer = (state, action) => {
@@ -592,7 +606,7 @@ let incrementValidatePartitionEntryCalled = false;
 const incrementValidatePartitionEntry = partitionEntry => {
     incrementValidatePartitionEntryCalled = true;
     if (typeof partitionEntry.impliedArguments === 'undefined')
-        error(`impliedArguments is missing for pluginId ${incrementPluginId.toString()}.`);
+        throw new Error(`impliedArguments is missing for pluginId ${incrementPluginId.toString()}.`);
 };
 
 const incrementPlugin = {
@@ -641,6 +655,8 @@ describe('Plugin test', function(){
     verifyStateAction2( 'test plugin2', expectedPluginCounter, gotPluginCounter, 'counter set correctly.');
     verifyStateAction2('test plugin incrementValidateChangerArguments called', incrementValidateChangerArgumentsCalled, true, 'incrementValidateChangerArguments called.');
 });
+
+
 
 
 
