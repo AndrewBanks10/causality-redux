@@ -57,15 +57,16 @@ const _defaultState = {};
 
 const internalActionType = '@@causality-redux/INIT';
 
+const setStateChangerName = 'setState';
+
 let _store = null;
 let _reduxStore = null;
 let _partitionsThatChanged = {};
 let _listeners = [];
 let _subscriberId = 0;
 let _partitionDefinitions = [];
-let _options = {};
-let _onStateChange = null;
-let _onListener = null;
+const _onStateChangeListeners = [];
+const _onListenerListeners = [];
 let _startState = null;
 let _completionListeners = [];
 let _subscribers = [];
@@ -103,12 +104,24 @@ const findPlugin = (pluginId) => {
         pluginId === e.pluginId
     );
     return plugin;
-};    
+};
 
-const indicateStateChange = (partitionName, type, operation, prevState, nextState, changerName, theirArgs) => {
-    if (typeof _onStateChange === 'function') {
-        if (changerName === 'setState')
-            operation = 'setState';
+const discloseToListeners = (obj) => {
+    _onListenerListeners.forEach(e => {
+        e(obj);
+    });
+};
+
+const discloseStateChange = (obj) => {
+    _onStateChangeListeners.forEach(e => {
+        e(obj);
+    });
+};
+
+const indicateStateChange = (partitionName, type, operation, prevState, nextState, changerName, reducerName, theirArgs) => {
+    if (_onStateChangeListeners.length > 0) {
+        if (changerName === setStateChangerName)
+            operation = setStateChangerName;
         const obj = {
             partitionName: partitionName.toString(),
             type: type,
@@ -116,25 +129,26 @@ const indicateStateChange = (partitionName, type, operation, prevState, nextStat
             prevState,
             nextState,
             changerName,
+            reducerName,
             args: theirArgs
         };
-        _onStateChange(obj);
+        discloseStateChange(obj);
     }
 };
 
 const indicateListener = (partitionName, nextState, listenerName) => {
-    if (typeof _onListener === 'function') {
+    if (_onListenerListeners.length > 0) {
         const obj = {
             partitionName: partitionName.toString(),
             nextState: nextState,
             listenerName: listenerName
         };
-        _onListener(obj);
+        discloseToListeners(obj);
     }
 };
 
 // Can only subscribe as a listener on a partition.  
-const internalSubscriber = (listener, partitionName, stateEntries = [], listenerName) => {
+const internalSubscriber = (listener, partitionName, stateEntries, listenerName) => {
     const arr = merge([], stateEntries);
     const obj = { id: _subscriberId++, listener, partitionName, stateEntries: arr, listenerName };
     _listeners.push(obj);
@@ -145,31 +159,46 @@ const internalUnsubscriber = (id) => {
     _listeners = _listeners.filter((item) => item.id !== id);
 };
 
+const internalExecuteChanger = (store, stateEntry, changerName, reducerName, changerArguments) => {
+    const action = stateEntry.changers[changerName](...changerArguments);
+    // User defined changer. Check validity of the returned action object.
+    if (typeof stateEntry.changerDefinitions[changerName] === undefinedString) {
+        if (typeof action === undefinedString || objectType(action) !== 'Object') {
+            error(`Changer ${changerName} must return an action object.`);
+            return;
+        }
+    // This is operations.STATE_FUNCTION_CALL. No dispatch action is to be taken.
+    } else if (typeof action === undefinedString)
+        return;
+    action.type = typeof action.type === undefinedString ? '' : action.type;
+    // Set the reducer so that it can be called in the generalReducer.
+    action.reducer = stateEntry.reducers[reducerName];
+    action.partitionName = stateEntry.partitionName;
+    action.reducerName = reducerName;
+    // redux dispatch
+    store.dispatch(action);
+};
+
+const executeChanger = (partitionName, changerName, reducerName, changerArguments) => {
+    if (changerName === setStateChangerName) {
+        executeSetState(partitionName, changerArguments[0]);
+        return;
+    }
+    const partition = findPartition(partitionName);
+    if (!partition)
+        return;
+    internalExecuteChanger(_store, partition, changerName, reducerName, changerArguments);
+};
+
 //
 // Whenever a changer is called, this is actually what executes.
 // It calls the actual changer and then stores info in the action object returned by the changer.
 // The associated reducer is saved also so that the generalReducer can call it.
 // Then redux dispatch is called.
 //
-const internalPartitionChanger = (store, stateEntry, o, reducerName) => {
+const internalPartitionChanger = (store, stateEntry, changerName, reducerName) => {
     return function () {
-        const action = stateEntry.changers[o](...arguments);
-        // User defined changer. Check validity of the returned action object.
-        if (typeof stateEntry.changerDefinitions[o] === undefinedString) {
-            if (typeof action === undefinedString || objectType(action) !== 'Object') {
-                error(`Changer ${o} must return an action object.`);
-                return;
-            }
-        // This is  operations.STATE_FUNCTION_CALL. No dispatch action is to be taken.
-        } else if (typeof action === undefinedString)
-            return;    
-        action.type = typeof action.type === undefinedString ? '' : action.type;
-        // Set the reducer so that it can be called in the generalReducer.
-        action.reducer = stateEntry.reducers[reducerName];
-        action.partitionName = stateEntry.partitionName;
-        action.reducerName = reducerName;
-        // redux dispatch
-        store.dispatch(action);
+        internalExecuteChanger(store, stateEntry, changerName, reducerName, arguments);
     };
 };
 
@@ -178,9 +207,13 @@ const internalPartitionChanger = (store, stateEntry, o, reducerName) => {
 //
 const internalPartitionSubscriber = (partitionName) => {
     return (
-        function (listener, stateEntries, listenerName = '') {
+        // If stateEntries == [] or undefined, listen to all keys in the partition.
+        function (listener, stateEntries = [], listenerName = '') {
+            if ( typeof listener !== 'function')
+                error('subscribe: first argument must be a function.');
             if (!Array.isArray(stateEntries))
                 error('subscribe: the 2nd argument must be an array of keys to listen on.');
+            
             const partition = findPartition(partitionName);
             stateEntries.forEach(se => {
                 let found = false;
@@ -217,19 +250,24 @@ const internalPartitionGetState = (store, partitionName) => {
     };
 };
 
+const executeSetState = (partitionName, theArg) => {
+    if (!objectType(theArg))
+        error('The Argument to setState must be an object.');
+    const actionObj = {
+        theirArgs: [theArg],
+        isSetState: true,
+        arguments: [],
+        type: setStateChangerName,
+        changerName: setStateChangerName,
+        partitionName
+    };    
+    _store.dispatch(actionObj);
+};
+
 // setState for the partiton    
-const internalPartitionSetState = (store, partitionName) => {
+const internalPartitionSetState = (partitionName) => {
     return function (theArg) {
-        if (!objectType(theArg))
-            error('The Argument to setState must be an object.');
-        const actionObj = {};
-        actionObj.theirArgs = theArg;
-        actionObj.isSetState = true;
-        actionObj.arguments = [];
-        actionObj.type = 'setState';
-        actionObj.changerName = actionObj.type;
-        actionObj.partitionName = partitionName;
-        store.dispatch(actionObj);
+        executeSetState(partitionName, theArg);
     };
 };
 
@@ -240,8 +278,10 @@ const validateStateEntry = (stateEntry) => {
         error(`defaultState missing from entry: ${stateEntry.partitionName}`);
 };
 
+//
 // Each partition has access to the changers and its own subscribe, getState and setState functions
 // with a partitionState proxy.
+//
 const setupPartition = (store, stateEntry) => {
     validateStateEntry(stateEntry);
     const partitionName = stateEntry.partitionName;
@@ -259,7 +299,7 @@ const setupPartition = (store, stateEntry) => {
 
     partitionStoreObject.subscribe = internalPartitionSubscriber(partitionName);
     partitionStoreObject.getState = internalPartitionGetState(store, partitionName);
-    partitionStoreObject.setState = internalPartitionSetState(store, partitionName);
+    partitionStoreObject.setState = internalPartitionSetState(partitionName);
     partitionStoreObject.partitionState = getPartitionProxy(partitionName, store[partitionName]);
 };
 
@@ -384,7 +424,7 @@ const buildStateEntryChangersAndReducers = (entry) => {
                         }
                     }
                     const nextState = { functionArguments: theArgs };
-                    indicateStateChange(partitionName, changerName, changerArg.operation, {}, nextState, changerName, theArgs);
+                    indicateStateChange(partitionName, changerName, changerArg.operation, {}, nextState, changerName, changerArg.reducerName, theArgs);
                     listenersToCall.forEach(listener => {
                         indicateListener(partitionName, nextState, listener.listenerName);
                         listener.listener(...theArgs);
@@ -394,15 +434,16 @@ const buildStateEntryChangersAndReducers = (entry) => {
                 }
                 
                 // Save important information in the action object
-                const actionObj = {};
-                actionObj.changerName = changerName;
-                actionObj.theirArgs = theArgs;
-                actionObj.type = typeof changerArg.type === undefinedString ? changerName : changerArg.type;
-                actionObj.arguments = typeof changerArg.arguments === undefinedString ? [] : changerArg.arguments;
-                actionObj.impliedArguments = typeof changerArg.impliedArguments === undefinedString ? [] : changerArg.impliedArguments;
-                actionObj.operation = typeof changerArg.operation === undefinedString ? operations.STATE_COPY : changerArg.operation;
-                actionObj.partitionName = partitionName;
-                actionObj.changerDefinition = changerArg;
+                const actionObj = {
+                    changerName,
+                    partitionName,
+                    theirArgs: theArgs,
+                    type: typeof changerArg.type === undefinedString ? changerName : changerArg.type,
+                    arguments: typeof changerArg.arguments === undefinedString ? [] : changerArg.arguments,
+                    impliedArguments: typeof changerArg.impliedArguments === undefinedString ? [] : changerArg.impliedArguments,
+                    operation: typeof changerArg.operation === undefinedString ? operations.STATE_COPY : changerArg.operation,
+                    changerDefinition: changerArg
+                };    
 
                 // A plugin only validates arguments. Its reducer will be called for the actual change.
                 if (typeof changerArg.pluginId !== undefinedString) {
@@ -626,26 +667,22 @@ function validatePartition(stateEntry) {
 }
 
 function addPartitionInternal(partitionDefinition) {
-    const partitionDefinitions = [partitionDefinition];
-    _partitionDefinitions =  _partitionDefinitions.concat(partitionDefinitions);
-    partitionDefinitions.forEach(stateEntry => {
-        validatePartition(stateEntry);
-        buildStateEntryChangersAndReducers(stateEntry);
-        setupPartition(_store, stateEntry);
-    });
+    _partitionDefinitions.push(partitionDefinition);
+    validatePartition(partitionDefinition);
+    buildStateEntryChangersAndReducers(partitionDefinition);
+    setupPartition(_store, partitionDefinition);
 }
 
 function setOptions(options = {}) {
-    _options = merge({}, options);
-    if ( _options.onStateChange ) {
-        if ( typeof _options.onStateChange !== 'function' )
+    if ( options.onStateChange ) {
+        if ( typeof options.onStateChange !== 'function' )
             error('options.onStateChange must be a function.');
-        _onStateChange = _options.onStateChange;
+        _onStateChangeListeners.push(options.onStateChange);
     }
-    if ( _options.onListener ) {
-        if ( typeof _options.onListener !== 'function' )
+    if ( options.onListener ) {
+        if ( typeof options.onListener !== 'function' )
             error('options.onListener must be a function.');
-        _onListener = _options.onListener;
+        _onListenerListeners.push(options.onListener);
     }
 }
     
@@ -701,7 +738,7 @@ function init(partitionDefinitions, preloadedState, enhancer, options={}) {
 
         // Call the reducer for the associated changer on the partition state.
         if (action.isSetState)
-            newState[action.partitionName] = merge({}, state[action.partitionName], action.theirArgs);    
+            newState[action.partitionName] = merge({}, state[action.partitionName], action.theirArgs[0]);    
         else if (typeof action.reducer === 'function')
             newState[action.partitionName] = action.reducer(state[action.partitionName], action);
         else if (typeof action.pluginCallback === 'function') {
@@ -720,9 +757,11 @@ function init(partitionDefinitions, preloadedState, enhancer, options={}) {
         if ( shallowEqual( newState[action.partitionName], state[action.partitionName] ) )
             return state;
         
+        // This only applies to ancient browsers.
         handleAddKeysToProxyObject(_store, action.partitionName, state, newState);
         
-        indicateStateChange(action.partitionName, action.type, action.operation, state[action.partitionName], newState[action.partitionName], action.changerName, action.theirArgs);
+        // For all listeners, disclose a state change.
+        indicateStateChange(action.partitionName, action.type, action.operation, state[action.partitionName], newState[action.partitionName], action.changerName, action.reducerName, action.theirArgs);
 
         // This is used to determine what partition listeners are involved in this change.           
         _partitionsThatChanged[action.partitionName] = true;
@@ -803,8 +842,6 @@ function init(partitionDefinitions, preloadedState, enhancer, options={}) {
     partitionDefinitions.forEach( entry => {
         addPartitionInternal(entry);
     });
-
-    return _store;
 }
 
 // Make sure the plugin has the required keys.    
@@ -833,7 +870,7 @@ function createStore(partitionDefinitions = [], preloadedState, enhancer, option
     );
     const p = _partitionDefinitions.concat(partitionDefinitions);
     _partitionDefinitions = [];
-    _store = init(p, preloadedState, enhancer, options);
+    init(p, preloadedState, enhancer, options);
     // call all those that called onStoreCreated with a listener for the store being created.
     _completionListeners.forEach(e => e());
     _completionListeners = [];
@@ -851,6 +888,7 @@ function createStore(partitionDefinitions = [], preloadedState, enhancer, option
 function addPartitions(partitionDefinitions) {
     if (!Array.isArray(partitionDefinitions))
         partitionDefinitions = [partitionDefinitions];
+    // Do not allow a partition with the same name as an existing partition.
     partitionDefinitions = partitionDefinitions.filter(entry =>
         typeof findPartition(entry.partitionName) === undefinedString
     );
@@ -925,6 +963,33 @@ function onStoreCreated(completionListener) {
         _completionListeners.push(completionListener);
 }
 
+//
+// Allows the creation of module data that is proxied during development.
+// This means changes to the data can be tracked by causality-redux and
+// indicated to the caller using dataChangeListener.
+//
+const getModuleData = (DEBUG, partitionName, defaultState, dataChangeListener) => {
+    if (DEBUG) {
+        if ( typeof partitionName === undefinedString)
+            error('partitionName is undefined.');
+        if ( typeof defaultState === undefinedString)
+            error('defaultState is undefined.');
+        if (CausalityRedux.store === null)
+            error('CausalityRedux not initialized.');
+
+        // Init the store partition
+        CausalityRedux.addPartitions({partitionName, defaultState});
+
+        // Get the proxy to the data store.    
+        const moduleData = CausalityRedux.store[partitionName].partitionState;
+        if (typeof dataChangeListener === 'function')
+            CausalityRedux.store[partitionName].subscribe(dataChangeListener);
+        return moduleData;
+    }    
+    
+    return defaultState;
+};
+
 const CausalityRedux = {
     createStore,
     addPartitions,
@@ -936,6 +1001,8 @@ const CausalityRedux = {
     merge,
     getKeys,
     operations,
+    getModuleData,
+    executeChanger,
     get store() {
         return _store;
     },
@@ -949,7 +1016,7 @@ const CausalityRedux = {
         return _partitionDefinitions;
     },
     get onListener() {
-        return _onListener;
+        return discloseToListeners;
     }
 };
 
