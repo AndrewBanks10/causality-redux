@@ -28,7 +28,6 @@ describe('CausalityRedux definition', function(){
   });
 });
 
-
 const COMMENTS_STATE = 'Comments';
 
 const onAddComment2 = (comment={author: '', text:''}) => {
@@ -188,7 +187,6 @@ describe('Verify argument errors are detected.', function(){
     testArgument( 'onOutside no subscriber', store[OUTSIDE_EVENT].onOutside, 6);
     
     testArgument( 'subscriber did not provide a listener', store[OUTSIDE_EVENT].subscribe);
-    testArgument( 'subscriber did not provide an array of keys for listening.', store[OUTSIDE_EVENT].subscribe, subscriberTest);
     testArgument('subscriber provided invalid key.', store[OUTSIDE_EVENT].subscribe, subscriberTest, ['event1']);
 
     testArgument('Invalid subscribe no listener.', CausalityRedux.subscribe);
@@ -656,15 +654,72 @@ describe('Plugin test', function(){
     verifyStateAction2('test plugin incrementValidateChangerArguments called', incrementValidateChangerArgumentsCalled, true, 'incrementValidateChangerArguments called.');
 });
 
+//
+// Test module data segments used for business code state that is not needed for UI.
+//
 
+// Define the data and default values
+const defaultData = {
+    items: [],
+    author: '',
+    obj: {}
+};
 
+// This is not called in production.
+let mdSubscriberCalled = false;
+const changeListener = dataChangedObject => {
+    mdSubscriberCalled = true;
+};
 
+let moduleData = CausalityRedux.getModuleData(true, 'MODULE_DATA_MODULE_NAME', defaultData, changeListener);
+const moduleState = store['MODULE_DATA_MODULE_NAME'];
 
+describe('Debug module data test', function () {
+    moduleData.author = 'author';
+    verifyStateAction2('test author', moduleData.author, 'author', 'author set correctly.');
+    verifyStateAction2('test author', moduleState.getState().author, 'author', 'author set correctly.');
+    verifyStateAction2('moduleData subscriber called', mdSubscriberCalled, true, 'moduleData subscriber was called.');
+    mdSubscriberCalled = false;
 
+    const arr = moduleData.items;
+    arr.push(1);
+    moduleData.items = arr;
 
+    verifyStateAction2('test items', moduleData.items, [1], 'items set correctly.');
+    verifyStateAction2('test items', moduleState.getState().items, [1], 'items set correctly.');
+    verifyStateAction2('moduleData subscriber called', mdSubscriberCalled, true, 'moduleData subscriber was called.');
+    mdSubscriberCalled = false;
 
+    const obj = moduleData.obj;
+    obj.a = 1;
+    moduleData.obj = obj;
 
+    verifyStateAction2('test obj', moduleData.obj, { a: 1 }, 'obj set correctly.');
+    verifyStateAction2('test obj', moduleState.getState().obj, {a:1}, 'obj set correctly.');
+    verifyStateAction2('moduleData subscriber called', mdSubscriberCalled, true, 'moduleData subscriber was called.');
+});
 
+moduleData = CausalityRedux.getModuleData(false, 'MODULE_DATA_MODULE_NAME2', defaultData, changeListener);
+mdSubscriberCalled = false;
+    
+describe('Production module data test', function () {
+    moduleData.author = 'author';
+    verifyStateAction2('test author', moduleData.author, 'author', 'author set correctly.');
+    verifyStateAction2('moduleData subscriber not called', mdSubscriberCalled, false, 'moduleData subscriber not called.');
 
+    const arr = moduleData.items;
+    arr.push(1);
+    moduleData.items = arr;
+
+    verifyStateAction2('test items', moduleData.items, [1], 'items set correctly.');
+    verifyStateAction2('moduleData subscriber not called', mdSubscriberCalled, false, 'moduleData subscriber not called.');
+
+    const obj = moduleData.obj;
+    obj.a = 1;
+    moduleData.obj = obj;
+
+    verifyStateAction2('test obj', moduleData.obj, { a: 1 }, 'obj set correctly.');
+    verifyStateAction2('moduleData subscriber not called', mdSubscriberCalled, false, 'moduleData subscriber not called.');
+});
 
 
