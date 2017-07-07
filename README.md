@@ -43,6 +43,7 @@ Note that there are no changers, reducers, dispatching, redux connects or mapSta
 The buttons are clicked, the counter value is changed in the redux store then CounterForm is rendered with the new value
 of counter set in the props. So, the new value is shown to the user.
 
+(Please note, there is a bug in node 6.11 that causes errors when debugging. Please upgrade to a later version.)
 
 ## Benefits of causality-redux
 - You can define multiple partitions within the redux store. This way, one partition can be associated exclusively with a causality chain of a UI component and its business logic. This also allows you to have shared partitions that can be used to change the state of such things as a UI busy loader than can be shared by different causality chains.
