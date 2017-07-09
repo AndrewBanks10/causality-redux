@@ -1,5 +1,6 @@
 const objectAssign = require('object-assign');
-export { objectAssign };
+
+export const merge = typeof Object.assign === 'function' ? Object.assign : objectAssign;      
 
 const getKeysWOSymbols = (obj) => {
     if (!obj) return [];
@@ -40,12 +41,7 @@ export function shallowCopy(obj) {
     if (!obj || typeof obj !== 'object') return obj;
     if (Array.isArray(obj))
         return [...obj];
-
-    const copy = {};
-    getKeys(obj).forEach(key =>
-        copy[key] = obj[key]
-    );
-    return copy;
+    return merge({},obj);
 }
 
 const proxyObjects = {};
@@ -66,13 +62,12 @@ export const handleAddKeysToProxyObject = (store, partitionName, currentState, n
 };
 
 const getPartitionValue = (target, key) => {
-    const toClone = target.getState()[key];
-    return toClone instanceof Object ? shallowCopy(toClone) : toClone;
+    return shallowCopy(target.getState()[key]);
 };
 
 const setPartitionValue = (target, key, value) => {
     if (target.getState()[key] !== value)
-        target.setState({ [key]: value });
+        target.setState({ [key]: value }, true);
     return true;
 };
 

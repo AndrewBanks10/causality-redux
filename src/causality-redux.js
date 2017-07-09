@@ -1,6 +1,6 @@
 ﻿/** @preserve © 2017 Andrew Banks ALL RIGHTS RESERVED */
 import { createStore as reduxCreateStore } from 'redux';
-import { handleAddKeysToProxyObject, getPartitionProxy, objectAssign, getKeys, shallowEqual } from './util';
+import { handleAddKeysToProxyObject, getPartitionProxy, merge, getKeys, shallowEqual } from './util';
 
 const operations = {
     STATE_COPY:                 1,
@@ -88,8 +88,6 @@ if (typeof createReduxStore === undefinedString) {
 
 const error = (msg) => { throw new Error(`CausalityRedux: ${msg}`); };
 
-const merge = typeof Object.assign === 'function' ? Object.assign : objectAssign;   
-
 const objectType = (obj) => Object.prototype.toString.call(obj).slice(8, -1);
 
 const findPartition = (partitionName) => {
@@ -149,7 +147,7 @@ const indicateListener = (partitionName, nextState, listenerName) => {
 
 // Can only subscribe as a listener on a partition.  
 const internalSubscriber = (listener, partitionName, stateEntries, listenerName) => {
-    const arr = merge([], stateEntries);
+    const arr = [...stateEntries];
     const obj = { id: _subscriberId++, listener, partitionName, stateEntries: arr, listenerName };
     _listeners.push(obj);
     return obj.id;
@@ -250,12 +248,13 @@ const internalPartitionGetState = (store, partitionName) => {
     };
 };
 
-const executeSetState = (partitionName, theArg) => {
+const executeSetState = (partitionName, theArg, noCheckCompare) => {
     if (!objectType(theArg))
         error('The Argument to setState must be an object.');
     const actionObj = {
         theirArgs: [theArg],
         isSetState: true,
+        noCheckCompare,
         arguments: [],
         type: setStateChangerName,
         changerName: setStateChangerName,
@@ -266,8 +265,8 @@ const executeSetState = (partitionName, theArg) => {
 
 // setState for the partiton    
 const internalPartitionSetState = (partitionName) => {
-    return function (theArg) {
-        executeSetState(partitionName, theArg);
+    return function (theObjectArg, noCheckCompare) {
+        executeSetState(partitionName, theObjectArg, noCheckCompare);
     };
 };
 
@@ -574,13 +573,13 @@ const buildStateEntryChangersAndReducers = (entry) => {
                             return entry[action.keyName].toString() === action.arrayArg;
                         });
                         if (index >= 0) {
-                            newArray[index] = merge(newArray[index], action.arrayEntryArg);
+                            newArray[index] = merge({}, newArray[index], action.arrayEntryArg);
                             newState[action.arrayName] = newArray;
                         }  
                         break;
                     case operations.STATE_OBJECT_MERGE:
                         key = action.arguments[0];
-                        newState[key] = merge(newState[key], action[key]);
+                        newState[key] = merge({}, newState[key], action[key]);
                         break;
                     default:
                         error(`Unknown operation entry in ${changerName}.`);
@@ -708,10 +707,7 @@ function init(partitionDefinitions, preloadedState, enhancer, options={}) {
         // Essentially, this means a new pointer.
         // So, set up a new one in case something changes.
         //
-        const newState = {};
-        getKeys(state).forEach( (entry) => {
-            newState[entry] = state[entry];
-        });
+        const newState = merge({}, state);
 
         // This handles correcting the redux store for partitions defined after the redux store is created.            
         if (action.type === internalActionType) {
@@ -742,6 +738,8 @@ function init(partitionDefinitions, preloadedState, enhancer, options={}) {
         else if (typeof action.reducer === 'function')
             newState[action.partitionName] = action.reducer(state[action.partitionName], action);
         else if (typeof action.pluginCallback === 'function') {
+            // The plugin might set a redux store value which is illegal while in the reducer.
+            // So, use a setTimeout so that we are guaranteed to not be in this reducer.
             setTimeout(action.pluginCallback, 1, ...action.theirArgs);
             return state;
         } else
@@ -750,11 +748,12 @@ function init(partitionDefinitions, preloadedState, enhancer, options={}) {
         //
         // Check to see if anything is different. If not, just return the original state.
         // This is shallow equal. It determines equality only on the keys of state.
-        // So, if the state entry is a basic type, then equality is performed.
+        // So, if a state entry at a key is a basic type, then equality is performed.
         // If the entry is an object, only pointer equality is checked. Lower objects may be different
         // and an array that had an element pushed directly in the redux store object  will not regester as a change.
+        // A noCheckCompare on setState is allowed to proceed unchecked.
         //
-        if ( shallowEqual( newState[action.partitionName], state[action.partitionName] ) )
+        if ( !action.noCheckCompare && shallowEqual( newState[action.partitionName], state[action.partitionName] ) )
             return state;
         
         // This only applies to ancient browsers.
@@ -965,7 +964,7 @@ function onStoreCreated(completionListener) {
 
 //
 // Allows the creation of module data that is proxied during development.
-// This means changes to the data can be tracked by causality-redux and
+// This means changes to the data at the top level keys can be tracked by causality-redux and
 // indicated to the caller using dataChangeListener.
 //
 const getModuleData = (DEBUG, partitionName, defaultState, dataChangeListener) => {

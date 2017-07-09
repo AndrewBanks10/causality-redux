@@ -502,7 +502,7 @@ verifyStateAction( 'test CausalityRedux.operations.STATE_ARRAY_ADD on custom cha
 //
 // test CausalityRedux.operations.STATE_COPY on array
 //
-expectedItems = [0];
+expectedItems = [{id:0,'author': 'authorx123'}];
 commentsState.onArrayChange(expectedItems);
 verifyStateAction( 'test CausalityRedux.operations.STATE_COPY', expectedItems, gotItems, 'listenerCommentItems', 'items array are equal');
  
@@ -571,7 +571,7 @@ describe('Testing unsubscribers', function(){
     });
 
     it(subscriberTestPassedString('listenerCommentItems'), function () {
-        commentsState.onChangeComment(0, {'author': 'authorx123'});
+        commentsState.onChangeComment(0, {'author': 'authorx1234'});
         assert(listenersCalled.length === 0);
     });
    

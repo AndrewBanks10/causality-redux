@@ -161,8 +161,6 @@ if ((typeof createReduxStore === 'undefined' ? 'undefined' : _typeof(createRedux
 
 var error = function error(msg) {throw new Error('CausalityRedux: ' + msg);};
 
-var merge = typeof Object.assign === 'function' ? Object.assign : _util.objectAssign;
-
 var objectType = function objectType(obj) {return Object.prototype.toString.call(obj).slice(8, -1);};
 
 var findPartition = function findPartition(partitionName) {
@@ -222,7 +220,7 @@ var indicateListener = function indicateListener(partitionName, nextState, liste
 
 // Can only subscribe as a listener on a partition.  
 var internalSubscriber = function internalSubscriber(listener, partitionName, stateEntries, listenerName) {
-    var arr = merge([], stateEntries);
+    var arr = [].concat(_toConsumableArray(stateEntries));
     var obj = { id: _subscriberId++, listener: listener, partitionName: partitionName, stateEntries: arr, listenerName: listenerName };
     _listeners.push(obj);
     return obj.id;
@@ -323,12 +321,13 @@ var internalPartitionGetState = function internalPartitionGetState(store, partit
     };
 };
 
-var executeSetState = function executeSetState(partitionName, theArg) {
+var executeSetState = function executeSetState(partitionName, theArg, noCheckCompare) {
     if (!objectType(theArg))
     error('The Argument to setState must be an object.');
     var actionObj = {
         theirArgs: [theArg],
         isSetState: true,
+        noCheckCompare: noCheckCompare,
         arguments: [],
         type: setStateChangerName,
         changerName: setStateChangerName,
@@ -339,8 +338,8 @@ var executeSetState = function executeSetState(partitionName, theArg) {
 
 // setState for the partiton    
 var internalPartitionSetState = function internalPartitionSetState(partitionName) {
-    return function (theArg) {
-        executeSetState(partitionName, theArg);
+    return function (theObjectArg, noCheckCompare) {
+        executeSetState(partitionName, theObjectArg, noCheckCompare);
     };
 };
 
@@ -587,7 +586,7 @@ var buildStateEntryChangersAndReducers = function buildStateEntryChangersAndRedu
     var internalDefinedReducer = function internalDefinedReducer(changerName, changerArg) {
         return (
             function (state, action) {
-                var newState = merge({}, state);
+                var newState = (0, _util.merge)({}, state);
                 var newArray = [];
                 var key = void 0,index = void 0;
                 if (_typeof(action.operation) === undefinedString)
@@ -647,13 +646,13 @@ var buildStateEntryChangersAndReducers = function buildStateEntryChangersAndRedu
                             return entry[action.keyName].toString() === action.arrayArg;
                         });
                         if (index >= 0) {
-                            newArray[index] = merge(newArray[index], action.arrayEntryArg);
+                            newArray[index] = (0, _util.merge)({}, newArray[index], action.arrayEntryArg);
                             newState[action.arrayName] = newArray;
                         }
                         break;
                     case operations.STATE_OBJECT_MERGE:
                         key = action.arguments[0];
-                        newState[key] = merge(newState[key], action[key]);
+                        newState[key] = (0, _util.merge)({}, newState[key], action[key]);
                         break;
                     default:
                         error('Unknown operation entry in ' + changerName + '.');}
@@ -774,22 +773,19 @@ function init(partitionDefinitions, preloadedState, enhancer) {var options = arg
         // We can't just use _defaultState because of possible hydration. 
         //
         if (!_startState)
-        _startState = merge({}, state);
+        _startState = (0, _util.merge)({}, state);
 
         //
         // Redux assumes a change occurred if a new state object is returned from this reducer.
         // Essentially, this means a new pointer.
         // So, set up a new one in case something changes.
         //
-        var newState = {};
-        (0, _util.getKeys)(state).forEach(function (entry) {
-            newState[entry] = state[entry];
-        });
+        var newState = (0, _util.merge)({}, state);
 
         // This handles correcting the redux store for partitions defined after the redux store is created.            
         if (action.type === internalActionType) {
             if (_typeof(newState[action.partitionName]) === undefinedString) {
-                newState[action.partitionName] = merge({}, action.defaultState);
+                newState[action.partitionName] = (0, _util.merge)({}, action.defaultState);
             } else {
                 // This is for a pre-hydrated state.
                 (0, _util.getKeys)(action.defaultState).forEach(function (key) {
@@ -798,7 +794,7 @@ function init(partitionDefinitions, preloadedState, enhancer) {var options = arg
                 });
             }
             if (_typeof(_startState[action.partitionName]) === undefinedString) {
-                _startState[action.partitionName] = merge({}, action.defaultState);
+                _startState[action.partitionName] = (0, _util.merge)({}, action.defaultState);
             } else {
                 // This is for a pre-hydrated state.
                 (0, _util.getKeys)(action.defaultState).forEach(function (key) {
@@ -811,10 +807,12 @@ function init(partitionDefinitions, preloadedState, enhancer) {var options = arg
 
         // Call the reducer for the associated changer on the partition state.
         if (action.isSetState)
-        newState[action.partitionName] = merge({}, state[action.partitionName], action.theirArgs[0]);else
+        newState[action.partitionName] = (0, _util.merge)({}, state[action.partitionName], action.theirArgs[0]);else
         if (typeof action.reducer === 'function')
         newState[action.partitionName] = action.reducer(state[action.partitionName], action);else
         if (typeof action.pluginCallback === 'function') {
+            // The plugin might set a redux store value which is illegal while in the reducer.
+            // So, use a setTimeout so that we are guaranteed to not be in this reducer.
             setTimeout.apply(undefined, [action.pluginCallback, 1].concat(_toConsumableArray(action.theirArgs)));
             return state;
         } else
@@ -823,11 +821,12 @@ function init(partitionDefinitions, preloadedState, enhancer) {var options = arg
         //
         // Check to see if anything is different. If not, just return the original state.
         // This is shallow equal. It determines equality only on the keys of state.
-        // So, if the state entry is a basic type, then equality is performed.
+        // So, if a state entry at a key is a basic type, then equality is performed.
         // If the entry is an object, only pointer equality is checked. Lower objects may be different
         // and an array that had an element pushed directly in the redux store object  will not regester as a change.
+        // A noCheckCompare on setState is allowed to proceed unchecked.
         //
-        if ((0, _util.shallowEqual)(newState[action.partitionName], state[action.partitionName]))
+        if (!action.noCheckCompare && (0, _util.shallowEqual)(newState[action.partitionName], state[action.partitionName]))
         return state;
 
         // This only applies to ancient browsers.
@@ -894,7 +893,7 @@ function init(partitionDefinitions, preloadedState, enhancer) {var options = arg
     };
 
     partitionDefinitions.forEach(function (entry) {
-        _defaultState[entry.partitionName] = merge({}, entry.defaultState);
+        _defaultState[entry.partitionName] = (0, _util.merge)({}, entry.defaultState);
     });
 
     // handle initial hydration of the redux store.        
@@ -902,7 +901,7 @@ function init(partitionDefinitions, preloadedState, enhancer) {var options = arg
     if ((typeof preloadedState === 'undefined' ? 'undefined' : _typeof(preloadedState)) !== undefinedString) {
         var stateKeys = [].concat(_toConsumableArray((0, _util.getKeys)(_defaultState)), _toConsumableArray((0, _util.getKeys)(preloadedState)));
         stateKeys.forEach(function (key) {
-            newObj[key] = merge({}, _defaultState[key], preloadedState[key]);
+            newObj[key] = (0, _util.merge)({}, _defaultState[key], preloadedState[key]);
         });
     } else
     newObj = undefined;
@@ -967,7 +966,7 @@ function addPartitions(partitionDefinitions) {
 
     if (_store !== null) {
         partitionDefinitions.forEach(function (entry) {
-            _defaultState[entry.partitionName] = merge({}, entry.defaultState);
+            _defaultState[entry.partitionName] = (0, _util.merge)({}, entry.defaultState);
             var action = {};
             action.type = internalActionType;
             action.defaultState = entry.defaultState;
@@ -1038,7 +1037,7 @@ function onStoreCreated(completionListener) {
 
 //
 // Allows the creation of module data that is proxied during development.
-// This means changes to the data can be tracked by causality-redux and
+// This means changes to the data at the top level keys can be tracked by causality-redux and
 // indicated to the caller using dataChangeListener.
 //
 var getModuleData = function getModuleData(DEBUG, partitionName, defaultState, dataChangeListener) {
@@ -1071,7 +1070,7 @@ var CausalityRedux = {
     onStoreCreated: onStoreCreated,
     setOptions: setOptions,
     shallowEqual: _util.shallowEqual,
-    merge: merge,
+    merge: _util.merge,
     getKeys: _util.getKeys,
     operations: operations,
     getModuleData: getModuleData,
@@ -1158,6 +1157,7 @@ Object.defineProperty(exports, "__esModule", { value: true });var _typeof = type
 
 
 
+
 shallowEqual = shallowEqual;exports.
 
 
@@ -1178,16 +1178,11 @@ shallowEqual = shallowEqual;exports.
 
 
 
-shallowCopy = shallowCopy;function _defineProperty(obj, key, value) {if (key in obj) {Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true });} else {obj[key] = value;}return obj;}function _toConsumableArray(arr) {if (Array.isArray(arr)) {for (var i = 0, arr2 = Array(arr.length); i < arr.length; i++) {arr2[i] = arr[i];}return arr2;} else {return Array.from(arr);}}var objectAssign = __webpack_require__(4);exports.objectAssign = objectAssign;var getKeysWOSymbols = function getKeysWOSymbols(obj) {if (!obj) return [];return Object.keys(obj);};var getKeysWSymbols = function getKeysWSymbols(obj) {if (!obj) return [];return [].concat(_toConsumableArray(Object.keys(obj)), _toConsumableArray(Object.getOwnPropertySymbols(obj)));};var getKeys = getKeysWOSymbols;if (typeof Object.getOwnPropertySymbols === 'function') exports.getKeys = getKeys = getKeysWSymbols;exports.getKeys = getKeys;function shallowEqual(objA, objB) {if (objA === objB) return true;var keysA = getKeys(objA);var keysB = getKeys(objB);if (keysA.length !== keysB.length) return false;var hasOwn = Object.prototype.hasOwnProperty;for (var i = 0; i < keysA.length; i++) {if (!hasOwn.call(objB, keysA[i]) || objA[keysA[i]] !== objB[keysA[i]]) {return false;}}return true;}function shallowCopy(obj) {
+shallowCopy = shallowCopy;function _defineProperty(obj, key, value) {if (key in obj) {Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true });} else {obj[key] = value;}return obj;}function _toConsumableArray(arr) {if (Array.isArray(arr)) {for (var i = 0, arr2 = Array(arr.length); i < arr.length; i++) {arr2[i] = arr[i];}return arr2;} else {return Array.from(arr);}}var objectAssign = __webpack_require__(4);var merge = exports.merge = typeof Object.assign === 'function' ? Object.assign : objectAssign;var getKeysWOSymbols = function getKeysWOSymbols(obj) {if (!obj) return [];return Object.keys(obj);};var getKeysWSymbols = function getKeysWSymbols(obj) {if (!obj) return [];return [].concat(_toConsumableArray(Object.keys(obj)), _toConsumableArray(Object.getOwnPropertySymbols(obj)));};var getKeys = getKeysWOSymbols;if (typeof Object.getOwnPropertySymbols === 'function') exports.getKeys = getKeys = getKeysWSymbols;exports.getKeys = getKeys;function shallowEqual(objA, objB) {if (objA === objB) return true;var keysA = getKeys(objA);var keysB = getKeys(objB);if (keysA.length !== keysB.length) return false;var hasOwn = Object.prototype.hasOwnProperty;for (var i = 0; i < keysA.length; i++) {if (!hasOwn.call(objB, keysA[i]) || objA[keysA[i]] !== objB[keysA[i]]) {return false;}}return true;}function shallowCopy(obj) {
     if (!obj || (typeof obj === 'undefined' ? 'undefined' : _typeof(obj)) !== 'object') return obj;
     if (Array.isArray(obj))
     return [].concat(_toConsumableArray(obj));
-
-    var copy = {};
-    getKeys(obj).forEach(function (key) {return (
-            copy[key] = obj[key]);});
-
-    return copy;
+    return merge({}, obj);
 }
 
 var proxyObjects = {};
@@ -1208,13 +1203,12 @@ var handleAddKeysToProxyObject = exports.handleAddKeysToProxyObject = function h
 };
 
 var getPartitionValue = function getPartitionValue(target, key) {
-    var toClone = target.getState()[key];
-    return toClone instanceof Object ? shallowCopy(toClone) : toClone;
+    return shallowCopy(target.getState()[key]);
 };
 
 var setPartitionValue = function setPartitionValue(target, key, value) {
     if (target.getState()[key] !== value)
-    target.setState(_defineProperty({}, key, value));
+    target.setState(_defineProperty({}, key, value), true);
     return true;
 };
 
