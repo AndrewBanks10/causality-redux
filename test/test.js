@@ -671,8 +671,9 @@ const changeListener = dataChangedObject => {
     mdSubscriberCalled = true;
 };
 
-let moduleData = CausalityRedux.getModuleData(true, 'MODULE_DATA_MODULE_NAME', defaultData, changeListener);
-const moduleState = store['MODULE_DATA_MODULE_NAME'];
+const ret = CausalityRedux.getModuleData(true, defaultData, changeListener);
+let moduleData = ret.moduleData;
+const moduleState = store[ret.partitionName];
 
 describe('Debug module data test', function () {
     moduleData.author = 'author';
@@ -699,7 +700,7 @@ describe('Debug module data test', function () {
     verifyStateAction2('moduleData subscriber called', mdSubscriberCalled, true, 'moduleData subscriber was called.');
 });
 
-moduleData = CausalityRedux.getModuleData(false, 'MODULE_DATA_MODULE_NAME2', defaultData, changeListener);
+moduleData = CausalityRedux.getModuleData(false, defaultData, changeListener).moduleData;
 mdSubscriberCalled = false;
     
 describe('Production module data test', function () {
@@ -721,5 +722,6 @@ describe('Production module data test', function () {
     verifyStateAction2('test obj', moduleData.obj, { a: 1 }, 'obj set correctly.');
     verifyStateAction2('moduleData subscriber not called', mdSubscriberCalled, false, 'moduleData subscriber not called.');
 });
+
 
 
