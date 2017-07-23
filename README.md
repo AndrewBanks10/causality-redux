@@ -89,7 +89,24 @@ You can find documentation at <https://cazec.com/causalityredux/causalityredux.h
 
 [Github causality-redux react extension](https://github.com/AndrewBanks10/react-causality-redux)
 
-### VS Code template for developing with react and causality-redux that supports debugging and hot re-loading for react and the business code on a file save.
+### VS Code template for developing with es6, jsx react and causality-redux.
+The template supports the following features.
+* es6 and jsx.
+* Total separation of react UI components from program state and business code.
+* Major extensions and simplifications to redux.
+* Can use the assignment operator on causality-redux store values to automatically update the react UI. No changers, reducers, etc are needed.
+* Vscode debugging and hot re-loading on a file save within react code or the business code. 
+* Css modules.
+* Sass, scss and less. 
+* Sass, scss, less and css injections into your react components.
+* Legacy css code.
+* Postcss-loader so you do not have to use vendor prefixes in your css code.
+* Url-loader for assets such as images, fonts etc that can be imported into your react components.
+* Mocha react/enzyme testing.
+* Mocha test vscode debugging that uses webpack to automatically compile changes made to the test code. 
+* Dll libraries for fast compiling while debugging and/or for production.
+* Minimized production build for both css and js.
+* Many code samples that demonstrate the use of causality-redux with react.
 
 [Github causality-redux react vscode hot loading and debug template](https://github.com/AndrewBanks10/react-causality-redux-vscode-template)
 
