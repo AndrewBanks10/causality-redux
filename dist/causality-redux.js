@@ -144,6 +144,7 @@ var _startState = null;
 var _completionListeners = [];
 var _subscribers = [];
 var _plugins = [];
+var uniqueKeys = {};
 
 var createReduxStore = void 0;
 if ((typeof _redux.createStore === 'undefined' ? 'undefined' : _typeof(_redux.createStore)) !== undefinedString) {
@@ -162,6 +163,8 @@ if ((typeof createReduxStore === 'undefined' ? 'undefined' : _typeof(createRedux
 var error = function error(msg) {throw new Error('CausalityRedux: ' + msg);};
 
 var objectType = function objectType(obj) {return Object.prototype.toString.call(obj).slice(8, -1);};
+
+var makeReducerName = function makeReducerName(changerName) {return changerName + 'Reducer';};
 
 var findPartition = function findPartition(partitionName) {
     var partition = CausalityRedux.partitionDefinitions.find(function (e) {return (
@@ -250,17 +253,6 @@ var internalExecuteChanger = function internalExecuteChanger(store, stateEntry, 
     store.dispatch(action);
 };
 
-var executeChanger = function executeChanger(partitionName, changerName, reducerName, changerArguments) {
-    if (changerName === setStateChangerName) {
-        executeSetState(partitionName, changerArguments[0]);
-        return;
-    }
-    var partition = findPartition(partitionName);
-    if (!partition)
-    return;
-    internalExecuteChanger(_store, partition, changerName, reducerName, changerArguments);
-};
-
 //
 // Whenever a changer is called, this is actually what executes.
 // It calls the actual changer and then stores info in the action object returned by the changer.
@@ -283,7 +275,7 @@ var internalPartitionSubscriber = function internalPartitionSubscriber(partition
             if (typeof listener !== 'function')
             error('subscribe: first argument must be a function.');
             if (!Array.isArray(stateEntries))
-            error('subscribe: the 2nd argument must be an array of keys to listen on.');
+            stateEntries = [stateEntries];
 
             var partition = findPartition(partitionName);
             stateEntries.forEach(function (se) {
@@ -360,7 +352,7 @@ var setupPartition = function setupPartition(store, stateEntry) {
     store[partitionName] = {};
     var partitionStoreObject = store[partitionName];
     (0, _util.getKeys)(stateEntry.changers).forEach(function (o) {
-        var reducerName = o + 'Reducer';
+        var reducerName = makeReducerName(o);
         var isPlugin = _typeof(stateEntry.changerDefinitions[o]) !== undefinedString && _typeof(stateEntry.changerDefinitions[o].pluginId) !== undefinedString;
         if (!isPlugin) {
             if (_typeof(stateEntry.reducers[reducerName]) === undefinedString)
@@ -495,7 +487,7 @@ var buildStateEntryChangersAndReducers = function buildStateEntryChangersAndRedu
                             theArgs.push(argObj);
                         }
                     }
-                    var nextState = { functionArguments: theArgs };
+                    var nextState = { crFunctionCall: changerName, args: theArgs };
                     indicateStateChange(partitionName, changerName, changerArg.operation, {}, nextState, changerName, changerArg.reducerName, theArgs);
                     listenersToCall.forEach(function (listener) {
                         indicateListener(partitionName, nextState, listener.listenerName);
@@ -681,7 +673,7 @@ var buildStateEntryChangersAndReducers = function buildStateEntryChangersAndRedu
         // Make the changer            
         entry.changers[o] = buildChanger(entry.partitionName, o, changerArg);
 
-        var reducerName = o + 'Reducer';
+        var reducerName = makeReducerName(o);
 
         // No reducer, define one.
         if (_typeof(entry.reducers[reducerName]) === undefinedString) {
@@ -703,9 +695,7 @@ function validatePartition(stateEntry) {
     changerKeys = [].concat(_toConsumableArray(changerKeys), _toConsumableArray((0, _util.getKeys)(stateEntry.changers)));
 
     changerKeys.forEach(function (e) {
-        var found = invalidChangerKeys.some(function (e2) {return (
-                e2 === e);});
-
+        var found = invalidChangerKeys.some(function (e2) {return e2 === e;});
         if (found)
         error(e + ' is an invalid changer name.');
     });
@@ -745,6 +735,10 @@ function addPartitionInternal(partitionDefinition) {
     setupPartition(_store, partitionDefinition);
 }
 
+//
+// Do not call this in hot reloadedable code.
+// The listener would be called for each time the module is loaded.
+//
 function setOptions() {var options = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
     if (options.onStateChange) {
         if (typeof options.onStateChange !== 'function')
@@ -956,7 +950,8 @@ function createStore() {var partitionDefinitions = arguments.length > 0 && argum
     return _store;
 }
 
-// Add partitions. This allows partitions to be added before and after createStore
+// Add partitions. This allows partitions to be added before and after createStore.
+// It also does not allow the same partition name to be included twice.
 function addPartitions(partitionDefinitions) {
     if (!Array.isArray(partitionDefinitions))
     partitionDefinitions = [partitionDefinitions];
@@ -1035,15 +1030,28 @@ function onStoreCreated(completionListener) {
     _completionListeners.push(completionListener);
 }
 
+
+function uniqueKey(templateName) {
+    if (!templateName)
+    templateName = 'causalityredux';
+    var id = 0;
+    var key = templateName;
+    while (uniqueKeys[key]) {
+        key = templateName + id.toString();
+        ++id;
+    }
+    uniqueKeys[key] = true;
+    return key;
+}
+
 //
 // Allows the creation of module data that is proxied during development.
 // This means changes to the data at the top level keys can be tracked by causality-redux and
 // indicated to the caller using dataChangeListener.
 //
-var getModuleData = function getModuleData(DEBUG, partitionName, defaultState, dataChangeListener) {
+var getModuleData = function getModuleData(DEBUG, defaultState, dataChangeListener) {
     if (DEBUG) {
-        if ((typeof partitionName === 'undefined' ? 'undefined' : _typeof(partitionName)) === undefinedString)
-        error('partitionName is undefined.');
+        var partitionName = uniqueKey();
         if ((typeof defaultState === 'undefined' ? 'undefined' : _typeof(defaultState)) === undefinedString)
         error('defaultState is undefined.');
         if (CausalityRedux.store === null)
@@ -1054,12 +1062,13 @@ var getModuleData = function getModuleData(DEBUG, partitionName, defaultState, d
 
         // Get the proxy to the data store.    
         var moduleData = CausalityRedux.store[partitionName].partitionState;
+        var unsubscribe = null;
         if (typeof dataChangeListener === 'function')
-        CausalityRedux.store[partitionName].subscribe(dataChangeListener);
-        return moduleData;
+        unsubscribe = CausalityRedux.store[partitionName].subscribe(dataChangeListener);
+        return { moduleData: moduleData, unsubscribe: unsubscribe, partitionName: partitionName };
     }
 
-    return defaultState;
+    return { moduleData: defaultState };
 };
 
 var CausalityRedux = {
@@ -1068,13 +1077,16 @@ var CausalityRedux = {
     addPlugins: addPlugins,
     subscribe: subscribe,
     onStoreCreated: onStoreCreated,
+    //
+    // Do not call setOptions in hot reloadedable code.
+    // The listener would be called for each time the module is loaded.
+    //
     setOptions: setOptions,
     shallowEqual: _util.shallowEqual,
     merge: _util.merge,
     getKeys: _util.getKeys,
     operations: operations,
     getModuleData: getModuleData,
-    executeChanger: executeChanger,
     get store() {
         return _store;
     },
