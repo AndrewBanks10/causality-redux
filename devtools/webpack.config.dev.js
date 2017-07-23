@@ -1,14 +1,13 @@
 const path = require('path');
 const webpack = require('webpack');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
-const config = require('./webpack.config.config');
+const config = require('./webpack.config.config.js');
 
-module.exports = {
+const devConfig = {
     devtool: 'cheap-module-source-map',
+    watch: true,
     entry: [
-        'react-hot-loader/patch',
         `webpack-dev-server/client?http://${process.env.npm_package_config_host}:${process.env.npm_package_config_port}`,
-        'webpack/hot/only-dev-server',
         path.join(config.basePath, config.testEntryJs) 
     ],
     output: {
@@ -23,18 +22,32 @@ module.exports = {
             }
         }),
         new webpack.HotModuleReplacementPlugin(),
-        new webpack.NamedModulesPlugin(),
-        new webpack.DllReferencePlugin({
-            context:config.absoluteDllPath, 
-            manifest: require(path.join(config.absoluteDllPath, `${config.dllBundleName}.json`))
-        }),
-        new HtmlWebpackPlugin({
-            template: config.htmlDevTemplate, 
-            inject: 'body' 
-        })
+        new webpack.NamedModulesPlugin()
     ],
     module: config.module,
     resolve: config.resolveEntry
 };
 
+if (config.dllModules.length > 0) {
+    devConfig.plugins.push(
+        new webpack.DllReferencePlugin({
+            context: config.absoluteDllPath,
+            manifest: require(path.join(config.absoluteDllPath, `${config.dllBundleName}.json`))
+        })
+    );
+    devConfig.plugins.push(
+        new HtmlWebpackPlugin({
+            template: config.htmlDevTemplate, 
+            inject: 'body' 
+        })
+    ); 
+} else {
+     devConfig.plugins.push(
+        new HtmlWebpackPlugin({
+            template: path.join(config.absoluteDevToolsPath, config.htmlTemplate),
+            inject: 'body' 
+        })
+    );   
+}
 
+module.exports = devConfig;

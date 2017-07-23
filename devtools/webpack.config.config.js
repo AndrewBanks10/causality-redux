@@ -17,30 +17,27 @@ const externalsLib = {
 };
 
 /*
- This is a list of modules used to create a dll library.
+  This is a list of modules used to create a dll library.
  Important for faster compiling since these rarely change.
- For debugging, definitely faster.
  Note: If you add or subtract from this list or update any modules in the list, pull up the task list
  and select "Builddll Development". Otherwise, run the command npm run builddll:dev.
 */
 const dllModules = [
     'redux',
-    'object-assign'  
+    'object-assign'
 ];
-
 
 const path = require('path');
 const config = {
     sourceDir: 'src', // Source directory.
-    // !!!NOTE!!!, if you change the value below you must also change it in launch.json under the production entry and the url key.
-    buildDir: 'dist',
-    libDir: 'lib',
+    buildDir: 'dist', // Build directory
+    libDir: 'lib', // Library build directory
     libEntryJs,
     buildEntryJs,
     libraryName: libraryName,
     bundleName: 'bundle', // For development debug only.
     testEntryJs: 'test.dev/index.dev.js', // For development debug only.
-    htmlTemplate: 'index.ejs', // For development debug only.
+    htmlTemplate: 'index.ejs', // For development debug only.  
 
     // List of modules you require for your library and do not want them contained in your own
     // library module. For example, you would not want react code contained in your library so that
@@ -79,6 +76,7 @@ config.absoluteBuildPath = path.join(config.basePath, config.buildDir);
 // At this time, the lib directory must be directly below the vscode directory.
 config.absoluteLibPath = path.join(config.basePath, config.libDir);
 
+// At this time, the dll directory must be directly below the vscode directory.
 config.absoluteDllPath = path.join(config.basePath, config.dllDir);
 
 config.absoluteDevToolsPath = path.join(config.basePath, 'devtools');
@@ -92,3 +90,4 @@ config.resolveEntry = {
 };
 
 module.exports = config;
+

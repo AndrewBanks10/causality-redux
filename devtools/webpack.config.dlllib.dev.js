@@ -25,9 +25,12 @@ module.exports = {
       filename: path.join(config.basePath, config.htmlDevTemplate), 
       inject: 'body',
       hash: true
-    })  
+    }) 
   ],
   resolve: config.resolveEntry
 };
+
+
+
 
 
