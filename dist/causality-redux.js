@@ -991,11 +991,13 @@ function addPartitions(partitionDefinitions) {
 function addPlugins(pluginObjs) {
     if (!Array.isArray(pluginObjs))
     pluginObjs = [pluginObjs];
-    pluginObjs = pluginObjs.filter(function (entry) {return (
-            _typeof(findPlugin(entry.pluginId)) === undefinedString);});
-
 
     pluginObjs.forEach(function (pluginObj) {
+        // Remove the plugin if it is already installed.
+        // This is for hot reloading.
+        _plugins = _plugins.filter(function (e) {return (
+                pluginObj.pluginId !== e.pluginId);});
+
         verifyPlugin(pluginObj);
         _plugins.push(pluginObj);
         if (_typeof(pluginObj.partitionDefinitions) !== undefinedString)
@@ -1010,7 +1012,7 @@ function subscribe(partitionName, listener, arrKeys, listenerName) {
     if (typeof listener !== 'function')
     error('subscribe listener argument is not a function.');
     if (!Array.isArray(arrKeys))
-    error('subscribe: the 3rd argument must be an array of keys to listen on.');
+    arrKeys = [arrKeys];
     if (_store !== null) {
         if (_typeof(_store[partitionName]) === undefinedString)
         error('${partitionName} is an invalid partition.');
@@ -1062,14 +1064,50 @@ var getModuleData = function getModuleData(DEBUG, defaultState, dataChangeListen
 
         // Get the proxy to the data store.    
         var moduleData = CausalityRedux.store[partitionName].partitionState;
-        var unsubscribe = null;
+        var moduleDataUnsubscribe = null;
         if (typeof dataChangeListener === 'function')
-        unsubscribe = CausalityRedux.store[partitionName].subscribe(dataChangeListener);
-        return { moduleData: moduleData, unsubscribe: unsubscribe, partitionName: partitionName };
+        moduleDataUnsubscribe = CausalityRedux.store[partitionName].subscribe(dataChangeListener);
+        return { moduleData: moduleData, moduleDataUnsubscribe: moduleDataUnsubscribe, partitionName: partitionName };
     }
 
     return { moduleData: defaultState };
 };
+
+function hotBusinessCodeInit(storePartition, subscribers, onStoreCreated, beforeReload) {
+    // Add the partition. Call this before onStoreCreated to make sure the partition is created before
+    // the onStoreCreated is called.
+    if (typeof storePartition !== 'undefined')
+    CausalityRedux.addPartitions(storePartition);
+
+    if (typeof subscribers === 'undefined')
+    subscribers = [];
+
+    // Set up a listener that is called once the store is created.
+    CausalityRedux.onStoreCreated(function () {
+        if (typeof storePartition !== 'undefined' && typeof CausalityRedux.store[storePartition.partitionName] !== 'undefined') {
+            subscribers.forEach(function (e) {
+                e.unsubscribe = CausalityRedux.store[storePartition.partitionName].subscribe(e.toCall, e.uiToCall, e.traceName);
+            });
+        }
+        if (typeof onStoreCreated === 'function')
+        onStoreCreated();
+    });
+
+    if (false) {
+        // Self accept
+        module.hot.accept();
+        // Add the dispose handler that is to be called before this module is changed out for the new changed one. 
+        // This must be done for any module with side effects like adding event listeners etc.
+        module.hot.addDisposeHandler(function () {
+            subscribers.forEach(function (e) {
+                if (typeof e.unsubscribe === 'function')
+                e.unsubscribe();
+            });
+            if (typeof beforeReload === 'function')
+            beforeReload();
+        });
+    }
+}
 
 var CausalityRedux = {
     createStore: createStore,
@@ -1087,6 +1125,7 @@ var CausalityRedux = {
     getKeys: _util.getKeys,
     operations: operations,
     getModuleData: getModuleData,
+    hotBusinessCodeInit: hotBusinessCodeInit,
     get store() {
         return _store;
     },
