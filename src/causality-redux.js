@@ -70,8 +70,8 @@ const _onListenerListeners = [];
 let _startState = null;
 let _completionListeners = [];
 let _subscribers = [];
-const _plugins = [];
-let uniqueKeys = {};
+let _plugins = [];
+const uniqueKeys = {};
 
 let createReduxStore;
 if (typeof reduxCreateStore !== undefinedString) {
@@ -918,11 +918,13 @@ function addPartitions(partitionDefinitions) {
 function addPlugins(pluginObjs) {
     if (!Array.isArray(pluginObjs))
         pluginObjs = [pluginObjs];
-    pluginObjs = pluginObjs.filter(entry =>
-        typeof findPlugin(entry.pluginId) === undefinedString
-    );
-    
+
     pluginObjs.forEach(pluginObj => {
+        // Remove the plugin if it is already installed.
+        // This is for hot reloading.
+        _plugins = _plugins.filter(e =>
+            pluginObj.pluginId !== e.pluginId
+        );
         verifyPlugin(pluginObj);
         _plugins.push(pluginObj);
         if(typeof pluginObj.partitionDefinitions !== undefinedString)
@@ -937,7 +939,7 @@ function subscribe(partitionName, listener, arrKeys, listenerName) {
     if (typeof listener !== 'function')
         error('subscribe listener argument is not a function.');
     if (!Array.isArray(arrKeys))
-        error('subscribe: the 3rd argument must be an array of keys to listen on.');
+        arrKeys = [arrKeys];
     if (_store !== null) { 
         if (typeof _store[partitionName] === undefinedString)
             error('${partitionName} is an invalid partition.');    
@@ -968,7 +970,7 @@ function uniqueKey(templateName) {
         ++id;
     }
     uniqueKeys[key] = true;
-    return (key);
+    return key;
 }
 
 //
@@ -989,14 +991,50 @@ const getModuleData = (DEBUG, defaultState, dataChangeListener) => {
 
         // Get the proxy to the data store.    
         const moduleData = CausalityRedux.store[partitionName].partitionState;
-        let unsubscribe = null;
+        let moduleDataUnsubscribe = null;
         if (typeof dataChangeListener === 'function')
-            unsubscribe = CausalityRedux.store[partitionName].subscribe(dataChangeListener);
-        return { moduleData, unsubscribe, partitionName };
+            moduleDataUnsubscribe = CausalityRedux.store[partitionName].subscribe(dataChangeListener);
+        return { moduleData, moduleDataUnsubscribe, partitionName };
     }    
     
     return { moduleData: defaultState };
 };
+
+function hotBusinessCodeInit(storePartition, subscribers, onStoreCreated, beforeReload) {
+    // Add the partition. Call this before onStoreCreated to make sure the partition is created before
+    // the onStoreCreated is called.
+    if ( typeof storePartition !== 'undefined' )
+        CausalityRedux.addPartitions(storePartition);
+
+    if (typeof subscribers === 'undefined') 
+        subscribers = [];
+
+    // Set up a listener that is called once the store is created.
+    CausalityRedux.onStoreCreated(() => {
+        if (typeof storePartition !== 'undefined' && typeof CausalityRedux.store[storePartition.partitionName] !== 'undefined') {
+            subscribers.forEach(e => {
+                e.unsubscribe = CausalityRedux.store[storePartition.partitionName].subscribe(e.toCall, e.uiToCall, e.traceName);
+            });
+        }  
+        if (typeof onStoreCreated === 'function')
+            onStoreCreated();
+    });
+
+    if (module.hot) {
+        // Self accept
+        module.hot.accept();
+        // Add the dispose handler that is to be called before this module is changed out for the new changed one. 
+        // This must be done for any module with side effects like adding event listeners etc.
+        module.hot.addDisposeHandler(() => {
+            subscribers.forEach(e => {
+                if ( typeof e.unsubscribe === 'function' )
+                    e.unsubscribe();
+            });
+            if ( typeof beforeReload === 'function' )
+                beforeReload();
+        });
+    }
+}
 
 const CausalityRedux = {
     createStore,
@@ -1014,6 +1052,7 @@ const CausalityRedux = {
     getKeys,
     operations,
     getModuleData,
+    hotBusinessCodeInit,
     get store() {
         return _store;
     },
