@@ -24,7 +24,8 @@ const changerDefinitionKeys = [
     'keyIndexerName',
     'keyName',
     'arrayArgShape',
-    'pluginId'
+    'pluginId',
+    'controllerFunction'
 ];
 
 const invalidChangerKeys = [
@@ -417,7 +418,10 @@ const buildStateEntryChangersAndReducers = (entry) => {
                     const nextState = { crFunctionCall: changerName, args: theArgs };
                     indicateStateChange(partitionName, changerName, changerArg.operation, {}, nextState, changerName, changerArg.reducerName, theArgs);
                     listenersToCall.forEach(listener => {
-                        indicateListener(partitionName, nextState, listener.listenerName);
+                        let name = listener.listenerName;
+                        if (name === '')
+                            name = `${changerName} called`;
+                        indicateListener(partitionName, nextState, name);
                         listener.listener(...theArgs);
                     });
                     // Indicates no reducer should be called and redux dispatch should not be called.
@@ -1000,40 +1004,59 @@ const getModuleData = (DEBUG, defaultState, dataChangeListener) => {
     return { moduleData: defaultState };
 };
 
-function hotBusinessCodeInit(storePartition, subscribers, onStoreCreated, beforeReload) {
-    // Add the partition. Call this before onStoreCreated to make sure the partition is created before
-    // the onStoreCreated is called.
-    if ( typeof storePartition !== 'undefined' )
-        CausalityRedux.addPartitions(storePartition);
 
-    if (typeof subscribers === 'undefined') 
-        subscribers = [];
+function establishControllerConnections({ module, partition, uiComponent, storeKeys, changerKeys }) {
+    if (typeof storeKeys === 'undefined')
+        storeKeys = Object.keys(partition.defaultState);
 
-    // Set up a listener that is called once the store is created.
-    CausalityRedux.onStoreCreated(() => {
-        if (typeof storePartition !== 'undefined' && typeof CausalityRedux.store[storePartition.partitionName] !== 'undefined') {
-            subscribers.forEach(e => {
-                e.unsubscribe = CausalityRedux.store[storePartition.partitionName].subscribe(e.toCall, e.uiToCall, e.traceName);
-            });
-        }  
-        if (typeof onStoreCreated === 'function')
-            onStoreCreated();
+    // Create the causality-redux store and use the store partition above for definitions. 
+    // If the store has already been created elsewhere, then only the counterTen partition is created.
+    CausalityRedux.createStore(partition);
+    // Get access to the partition’s controller functions.
+    const partitionStore = CausalityRedux.store[partition.partitionName];
+
+    // Get a proxy to the store partition so that causality-redux can detect changes to the values of the partition.
+    const partitionState = partitionStore.partitionState;
+
+    const funcKeys = [];
+    const unsubscribers = [];
+    getKeys(partition.changerDefinitions).forEach(changerKey => {
+        const entry = partition.changerDefinitions[changerKey];
+        if (entry.operation === CausalityRedux.operations.STATE_FUNCTION_CALL) {
+            unsubscribers.push(partitionStore.subscribe(entry.controllerFunction, changerKey));
+            funcKeys.push(changerKey);
+        }    
     });
 
+    if (typeof changerKeys === 'undefined')
+        changerKeys = funcKeys;
+    
+    if (typeof uiComponent !== 'undefined') {
+        uiComponent = CausalityRedux.connectChangersAndStateToProps(
+            uiComponent, // React component to wrap.
+            partition.partitionName, // State partition
+            // This is an array of names of changers/action creators defined in the partition that you want
+            // passed into the props by causality-redux so that the component can call these functions.
+            changerKeys,
+            // This is an array of keys in COUNTTEN_STATE whose values you want passed into the props.
+            // Whenever any value associated with a key listed in this array changes in the causality-redux store,
+            // causality-redux will cause the component to render with the new values set in the props.
+            storeKeys 	 
+        );
+    }
+
     if (module.hot) {
-        // Self accept
-        module.hot.accept();
-        // Add the dispose handler that is to be called before this module is changed out for the new changed one. 
+        // Add the dispose handler that is to be called before this module is changed out for the new one. 
         // This must be done for any module with side effects like adding event listeners etc.
-        module.hot.addDisposeHandler(() => {
-            subscribers.forEach(e => {
-                if ( typeof e.unsubscribe === 'function' )
-                    e.unsubscribe();
-            });
-            if ( typeof beforeReload === 'function' )
-                beforeReload();
+        module.hot.dispose(function () {
+            unsubscribers.forEach(unsubscriber => unsubscriber());
         });
     }
+
+    return {
+        partitionState,
+        uiComponent
+    };
 }
 
 const CausalityRedux = {
@@ -1052,7 +1075,7 @@ const CausalityRedux = {
     getKeys,
     operations,
     getModuleData,
-    hotBusinessCodeInit,
+    establishControllerConnections,
     get store() {
         return _store;
     },
