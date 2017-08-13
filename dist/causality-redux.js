@@ -72,7 +72,7 @@
 
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) {return typeof obj;} : function (obj) {return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj;}; /** @preserve © 2017 Andrew Banks ALL RIGHTS RESERVED */
-var _redux = __webpack_require__(5);
+var _redux = __webpack_require__(12);
 var _util = __webpack_require__(3);function _toConsumableArray(arr) {if (Array.isArray(arr)) {for (var i = 0, arr2 = Array(arr.length); i < arr.length; i++) {arr2[i] = arr[i];}return arr2;} else {return Array.from(arr);}}
 
 var operations = {
@@ -582,7 +582,7 @@ var buildStateEntryChangersAndReducers = function buildStateEntryChangersAndRedu
     var internalDefinedReducer = function internalDefinedReducer(changerName, changerArg) {
         return (
             function (state, action) {
-                var newState = (0, _util.merge)({}, state);
+                var newState = (0, _util.shallowCopy)(state);
                 var newArray = [];
                 var key = void 0,index = void 0;
                 if (_typeof(action.operation) === undefinedString)
@@ -771,19 +771,19 @@ function init(partitionDefinitions, preloadedState, enhancer) {var options = arg
         // We can't just use _defaultState because of possible hydration. 
         //
         if (!_startState)
-        _startState = (0, _util.merge)({}, state);
+        _startState = (0, _util.shallowCopy)(state);
 
         //
         // Redux assumes a change occurred if a new state object is returned from this reducer.
         // Essentially, this means a new pointer.
         // So, set up a new one in case something changes.
         //
-        var newState = (0, _util.merge)({}, state);
+        var newState = (0, _util.shallowCopy)(state);
 
         // This handles correcting the redux store for partitions defined after the redux store is created.            
         if (action.type === internalActionType) {
             if (_typeof(newState[action.partitionName]) === undefinedString) {
-                newState[action.partitionName] = (0, _util.merge)({}, action.defaultState);
+                newState[action.partitionName] = (0, _util.shallowCopy)(action.defaultState);
             } else {
                 // This is for a pre-hydrated state.
                 (0, _util.getKeys)(action.defaultState).forEach(function (key) {
@@ -792,7 +792,7 @@ function init(partitionDefinitions, preloadedState, enhancer) {var options = arg
                 });
             }
             if (_typeof(_startState[action.partitionName]) === undefinedString) {
-                _startState[action.partitionName] = (0, _util.merge)({}, action.defaultState);
+                _startState[action.partitionName] = (0, _util.shallowCopy)(action.defaultState);
             } else {
                 // This is for a pre-hydrated state.
                 (0, _util.getKeys)(action.defaultState).forEach(function (key) {
@@ -891,7 +891,7 @@ function init(partitionDefinitions, preloadedState, enhancer) {var options = arg
     };
 
     partitionDefinitions.forEach(function (entry) {
-        _defaultState[entry.partitionName] = (0, _util.merge)({}, entry.defaultState);
+        _defaultState[entry.partitionName] = (0, _util.shallowCopy)(entry.defaultState);
     });
 
     // handle initial hydration of the redux store.        
@@ -965,7 +965,7 @@ function addPartitions(partitionDefinitions) {
 
     if (_store !== null) {
         partitionDefinitions.forEach(function (entry) {
-            _defaultState[entry.partitionName] = (0, _util.merge)({}, entry.defaultState);
+            _defaultState[entry.partitionName] = (0, _util.shallowCopy)(entry.defaultState);
             var action = {};
             action.type = internalActionType;
             action.defaultState = entry.defaultState;
@@ -1144,6 +1144,7 @@ var CausalityRedux = {
     //
     setOptions: setOptions,
     shallowEqual: _util.shallowEqual,
+    shallowCopy: _util.shallowCopy,
     merge: _util.merge,
     getKeys: _util.getKeys,
     operations: operations,
@@ -1232,6 +1233,7 @@ Object.defineProperty(exports, "__esModule", { value: true });var _typeof = type
 
 
 
+
 shallowEqual = shallowEqual;exports.
 
 
@@ -1252,11 +1254,9 @@ shallowEqual = shallowEqual;exports.
 
 
 
-shallowCopy = shallowCopy;function _defineProperty(obj, key, value) {if (key in obj) {Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true });} else {obj[key] = value;}return obj;}function _toConsumableArray(arr) {if (Array.isArray(arr)) {for (var i = 0, arr2 = Array(arr.length); i < arr.length; i++) {arr2[i] = arr[i];}return arr2;} else {return Array.from(arr);}}var objectAssign = __webpack_require__(4);var merge = exports.merge = typeof Object.assign === 'function' ? Object.assign : objectAssign;var getKeysWOSymbols = function getKeysWOSymbols(obj) {if (!obj) return [];return Object.keys(obj);};var getKeysWSymbols = function getKeysWSymbols(obj) {if (!obj) return [];return [].concat(_toConsumableArray(Object.keys(obj)), _toConsumableArray(Object.getOwnPropertySymbols(obj)));};var getKeys = getKeysWOSymbols;if (typeof Object.getOwnPropertySymbols === 'function') exports.getKeys = getKeys = getKeysWSymbols;exports.getKeys = getKeys;function shallowEqual(objA, objB) {if (objA === objB) return true;var keysA = getKeys(objA);var keysB = getKeys(objB);if (keysA.length !== keysB.length) return false;var hasOwn = Object.prototype.hasOwnProperty;for (var i = 0; i < keysA.length; i++) {if (!hasOwn.call(objB, keysA[i]) || objA[keysA[i]] !== objB[keysA[i]]) {return false;}}return true;}function shallowCopy(obj) {
+shallowCopy = shallowCopy;function _defineProperty(obj, key, value) {if (key in obj) {Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true });} else {obj[key] = value;}return obj;}function _toConsumableArray(arr) {if (Array.isArray(arr)) {for (var i = 0, arr2 = Array(arr.length); i < arr.length; i++) {arr2[i] = arr[i];}return arr2;} else {return Array.from(arr);}}var objectAssign = __webpack_require__(10);var shallowClone = __webpack_require__(11);var merge = exports.merge = typeof Object.assign === 'function' ? Object.assign : objectAssign;var getKeysWOSymbols = function getKeysWOSymbols(obj) {if (!obj) return [];return Object.keys(obj);};var getKeysWSymbols = function getKeysWSymbols(obj) {if (!obj) return [];return [].concat(_toConsumableArray(Object.keys(obj)), _toConsumableArray(Object.getOwnPropertySymbols(obj)));};var getKeys = getKeysWOSymbols;if (typeof Object.getOwnPropertySymbols === 'function') exports.getKeys = getKeys = getKeysWSymbols;exports.getKeys = getKeys;function shallowEqual(objA, objB) {if (objA === objB) return true;var keysA = getKeys(objA);var keysB = getKeys(objB);if (keysA.length !== keysB.length) return false;var hasOwn = Object.prototype.hasOwnProperty;for (var i = 0; i < keysA.length; i++) {if (!hasOwn.call(objB, keysA[i]) || objA[keysA[i]] !== objB[keysA[i]]) {return false;}}return true;}function shallowCopy(obj) {
     if (!obj || (typeof obj === 'undefined' ? 'undefined' : _typeof(obj)) !== 'object') return obj;
-    if (Array.isArray(obj))
-    return [].concat(_toConsumableArray(obj));
-    return merge({}, obj);
+    return shallowClone(obj);
 }
 
 var proxyObjects = {};
@@ -1396,6 +1396,260 @@ if (!Array.prototype.findIndex) {
 
 /***/ }),
 /* 4 */
+/***/ (function(module, exports) {
+
+/*!
+ * Determine if an object is a Buffer
+ *
+ * @author   Feross Aboukhadijeh <feross@feross.org> <http://feross.org>
+ * @license  MIT
+ */
+
+// The _isBuffer check is for Safari 5-7 support, because it's missing
+// Object.prototype.constructor. Remove this eventually
+module.exports = function (obj) {
+  return obj != null && (isBuffer(obj) || isSlowBuffer(obj) || !!obj._isBuffer)
+}
+
+function isBuffer (obj) {
+  return !!obj.constructor && typeof obj.constructor.isBuffer === 'function' && obj.constructor.isBuffer(obj)
+}
+
+// For Node v0.10 support. Remove this eventually.
+function isSlowBuffer (obj) {
+  return typeof obj.readFloatLE === 'function' && typeof obj.slice === 'function' && isBuffer(obj.slice(0, 0))
+}
+
+
+/***/ }),
+/* 5 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+/*!
+ * is-extendable <https://github.com/jonschlinkert/is-extendable>
+ *
+ * Copyright (c) 2015, Jon Schlinkert.
+ * Licensed under the MIT License.
+ */
+
+
+
+module.exports = function isExtendable(val) {
+  return typeof val !== 'undefined' && val !== null
+    && (typeof val === 'object' || typeof val === 'function');
+};
+
+
+/***/ }),
+/* 6 */
+/***/ (function(module, exports, __webpack_require__) {
+
+var isBuffer = __webpack_require__(4);
+var toString = Object.prototype.toString;
+
+/**
+ * Get the native `typeof` a value.
+ *
+ * @param  {*} `val`
+ * @return {*} Native javascript type
+ */
+
+module.exports = function kindOf(val) {
+  // primitivies
+  if (typeof val === 'undefined') {
+    return 'undefined';
+  }
+  if (val === null) {
+    return 'null';
+  }
+  if (val === true || val === false || val instanceof Boolean) {
+    return 'boolean';
+  }
+  if (typeof val === 'string' || val instanceof String) {
+    return 'string';
+  }
+  if (typeof val === 'number' || val instanceof Number) {
+    return 'number';
+  }
+
+  // functions
+  if (typeof val === 'function' || val instanceof Function) {
+    return 'function';
+  }
+
+  // array
+  if (typeof Array.isArray !== 'undefined' && Array.isArray(val)) {
+    return 'array';
+  }
+
+  // check for instances of RegExp and Date before calling `toString`
+  if (val instanceof RegExp) {
+    return 'regexp';
+  }
+  if (val instanceof Date) {
+    return 'date';
+  }
+
+  // other objects
+  var type = toString.call(val);
+
+  if (type === '[object RegExp]') {
+    return 'regexp';
+  }
+  if (type === '[object Date]') {
+    return 'date';
+  }
+  if (type === '[object Arguments]') {
+    return 'arguments';
+  }
+  if (type === '[object Error]') {
+    return 'error';
+  }
+
+  // buffer
+  if (isBuffer(val)) {
+    return 'buffer';
+  }
+
+  // es6: Map, WeakMap, Set, WeakSet
+  if (type === '[object Set]') {
+    return 'set';
+  }
+  if (type === '[object WeakSet]') {
+    return 'weakset';
+  }
+  if (type === '[object Map]') {
+    return 'map';
+  }
+  if (type === '[object WeakMap]') {
+    return 'weakmap';
+  }
+  if (type === '[object Symbol]') {
+    return 'symbol';
+  }
+
+  // typed arrays
+  if (type === '[object Int8Array]') {
+    return 'int8array';
+  }
+  if (type === '[object Uint8Array]') {
+    return 'uint8array';
+  }
+  if (type === '[object Uint8ClampedArray]') {
+    return 'uint8clampedarray';
+  }
+  if (type === '[object Int16Array]') {
+    return 'int16array';
+  }
+  if (type === '[object Uint16Array]') {
+    return 'uint16array';
+  }
+  if (type === '[object Int32Array]') {
+    return 'int32array';
+  }
+  if (type === '[object Uint32Array]') {
+    return 'uint32array';
+  }
+  if (type === '[object Float32Array]') {
+    return 'float32array';
+  }
+  if (type === '[object Float64Array]') {
+    return 'float64array';
+  }
+
+  // must be a plain object
+  return 'object';
+};
+
+
+/***/ }),
+/* 7 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+var isObject = __webpack_require__(9);
+var forIn = __webpack_require__(8);
+
+function mixin(target, objects) {
+  if (!isObject(target)) {
+    throw new TypeError('mixin-object expects the first argument to be an object.');
+  }
+  var len = arguments.length, i = 0;
+  while (++i < len) {
+    var obj = arguments[i];
+    if (isObject(obj)) {
+      forIn(obj, copy, target);
+    }
+  }
+  return target;
+}
+
+/**
+ * copy properties from the source object to the
+ * target object.
+ *
+ * @param  {*} `value`
+ * @param  {String} `key`
+ */
+
+function copy(value, key) {
+  this[key] = value;
+}
+
+/**
+ * Expose `mixin`
+ */
+
+module.exports = mixin;
+
+/***/ }),
+/* 8 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+/*!
+ * for-in <https://github.com/jonschlinkert/for-in>
+ *
+ * Copyright (c) 2014-2017, Jon Schlinkert.
+ * Released under the MIT License.
+ */
+
+
+
+module.exports = function forIn(obj, fn, thisArg) {
+  for (var key in obj) {
+    if (fn.call(thisArg, obj[key], key, obj) === false) {
+      break;
+    }
+  }
+};
+
+
+/***/ }),
+/* 9 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+/*!
+ * is-extendable <https://github.com/jonschlinkert/is-extendable>
+ *
+ * Copyright (c) 2015, Jon Schlinkert.
+ * Licensed under the MIT License.
+ */
+
+
+
+module.exports = function isExtendable(val) {
+  return typeof val !== 'undefined' && val !== null
+    && (typeof val === 'object' || typeof val === 'function');
+};
+
+
+/***/ }),
+/* 10 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -1492,7 +1746,71 @@ module.exports = shouldUseNative() ? Object.assign : function (target, source) {
 
 
 /***/ }),
-/* 5 */
+/* 11 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+/*!
+ * shallow-clone <https://github.com/jonschlinkert/shallow-clone>
+ *
+ * Copyright (c) 2015-2017, Jon Schlinkert.
+ * Released under the MIT License.
+ */
+
+
+
+var isObject = __webpack_require__(5);
+var mixin = __webpack_require__(7);
+var typeOf = __webpack_require__(6);
+
+/**
+ * Shallow copy an object, array or primitive.
+ *
+ * @param  {any} `val`
+ * @return {any}
+ */
+
+function clone(val) {
+  var type = typeOf(val);
+  if (clone.hasOwnProperty(type)) {
+    return clone[type](val);
+  }
+  return val;
+}
+
+clone.array = function cloneArray(arr) {
+  return arr.slice();
+};
+
+clone.date = function cloneDate(date) {
+  return new Date(+date);
+};
+
+clone.object = function cloneObject(obj) {
+  if (isObject(obj)) {
+    return mixin({}, obj);
+  } else {
+    return obj;
+  }
+};
+
+clone.regexp = function cloneRegExp(re) {
+  var flags = '';
+  flags += re.multiline ? 'm' : '';
+  flags += re.global ? 'g' : '';
+  flags += re.ignorecase ? 'i' : '';
+  return new RegExp(re.source, flags);
+};
+
+/**
+ * Expose `clone`
+ */
+
+module.exports = clone;
+
+
+/***/ }),
+/* 12 */
 /***/ (function(module, exports) {
 
 module.exports = Redux;

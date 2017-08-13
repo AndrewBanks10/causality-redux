@@ -1,6 +1,6 @@
 ﻿/** @preserve © 2017 Andrew Banks ALL RIGHTS RESERVED */
 import { createStore as reduxCreateStore } from 'redux';
-import { handleAddKeysToProxyObject, getPartitionProxy, merge, getKeys, shallowEqual } from './util';
+import { handleAddKeysToProxyObject, getPartitionProxy, merge, getKeys, shallowEqual, shallowCopy } from './util';
 
 const operations = {
     STATE_COPY:                 1,
@@ -509,7 +509,7 @@ const buildStateEntryChangersAndReducers = (entry) => {
     const internalDefinedReducer = (changerName, changerArg) => {
         return (
             function (state, action) {
-                const newState = merge({}, state);
+                const newState = shallowCopy(state);
                 let newArray = [];
                 let key, index;
                 if (typeof action.operation === undefinedString)
@@ -698,19 +698,19 @@ function init(partitionDefinitions, preloadedState, enhancer, options={}) {
         // We can't just use _defaultState because of possible hydration. 
         //
         if (!_startState)
-            _startState = merge({}, state);
+            _startState = shallowCopy(state);
         
         //
         // Redux assumes a change occurred if a new state object is returned from this reducer.
         // Essentially, this means a new pointer.
         // So, set up a new one in case something changes.
         //
-        const newState = merge({}, state);
+        const newState = shallowCopy(state);
 
         // This handles correcting the redux store for partitions defined after the redux store is created.            
         if (action.type === internalActionType) {
             if (typeof newState[action.partitionName] === undefinedString) {
-                newState[action.partitionName] = merge({}, action.defaultState);
+                newState[action.partitionName] = shallowCopy(action.defaultState);
             } else {
                 // This is for a pre-hydrated state.
                 getKeys(action.defaultState).forEach(key => {
@@ -719,7 +719,7 @@ function init(partitionDefinitions, preloadedState, enhancer, options={}) {
                 });
             }
             if (typeof _startState[action.partitionName] === undefinedString) {
-                _startState[action.partitionName] = merge({}, action.defaultState);
+                _startState[action.partitionName] = shallowCopy(action.defaultState);
             } else {
                 // This is for a pre-hydrated state.
                 getKeys(action.defaultState).forEach(key => {
@@ -818,7 +818,7 @@ function init(partitionDefinitions, preloadedState, enhancer, options={}) {
     };
     
     partitionDefinitions.forEach( entry => {
-        _defaultState[entry.partitionName] = merge({},entry.defaultState);
+        _defaultState[entry.partitionName] = shallowCopy(entry.defaultState);
     });
 
     // handle initial hydration of the redux store.        
@@ -892,7 +892,7 @@ function addPartitions(partitionDefinitions) {
     );
     if (_store !== null) {
         partitionDefinitions.forEach(entry => {
-            _defaultState[entry.partitionName] = merge({}, entry.defaultState);
+            _defaultState[entry.partitionName] = shallowCopy(entry.defaultState);
             const action = {};
             action.type = internalActionType;
             action.defaultState = entry.defaultState;
@@ -1071,6 +1071,7 @@ const CausalityRedux = {
     //
     setOptions,
     shallowEqual,
+    shallowCopy,
     merge,
     getKeys,
     operations,

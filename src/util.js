@@ -1,4 +1,5 @@
 const objectAssign = require('object-assign');
+const shallowClone = require('shallow-clone');
 
 export const merge = typeof Object.assign === 'function' ? Object.assign : objectAssign;      
 
@@ -39,9 +40,7 @@ export function shallowEqual(objA, objB) {
 
 export function shallowCopy(obj) {
     if (!obj || typeof obj !== 'object') return obj;
-    if (Array.isArray(obj))
-        return [...obj];
-    return merge({},obj);
+    return(shallowClone(obj))
 }
 
 const proxyObjects = {};
