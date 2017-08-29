@@ -113,7 +113,8 @@ var stateEntryValidKeys = [
 'defaultState',
 'changers',
 'reducers',
-'changerDefinitions'];
+'changerDefinitions',
+'controllerFunctions'];
 
 
 var stateEntryRequiredKeys = [
@@ -368,7 +369,20 @@ var setupPartition = function setupPartition(store, stateEntry) {
     partitionStoreObject.partitionState = (0, _util.getPartitionProxy)(partitionName, store[partitionName]);
 };
 
+var handleControllerFunctions = function handleControllerFunctions(entry) {
+    if (entry.controllerFunctions) {
+        if (!entry.changerDefinitions)
+        entry.changerDefinitions = {};
+        (0, _util.getKeys)(entry.controllerFunctions).forEach(function (functionEntry) {
+            entry.changerDefinitions[functionEntry] = { operation: CausalityRedux.operations.STATE_FUNCTION_CALL, controllerFunction: entry.controllerFunctions[functionEntry] };
+        });
+    }
+};
+
 var buildStateEntryChangersAndReducers = function buildStateEntryChangersAndReducers(entry) {
+
+    handleControllerFunctions(entry);
+
     if (!entry.changerDefinitions)
     return;
 
@@ -924,6 +938,14 @@ var verifyPlugin = function verifyPlugin(plugin) {
     });
 };
 
+var copyPartitions = function copyPartitions(partitionDefinitions) {
+    var copied = [];
+    partitionDefinitions.forEach(function (entry) {
+        copied.push((0, _util.shallowCopy)(entry));
+    });
+    return copied;
+};
+
 // creates the causality-redux store.
 function createStore() {var partitionDefinitions = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : [];var preloadedState = arguments[1];var enhancer = arguments[2];var options = arguments[3];
     if (!Array.isArray(partitionDefinitions))
@@ -934,7 +956,7 @@ function createStore() {var partitionDefinitions = arguments.length > 0 && argum
         setOptions(options);
         return _store;
     }
-
+    partitionDefinitions = copyPartitions(partitionDefinitions);
     partitionDefinitions = partitionDefinitions.filter(function (entry) {return (
             _typeof(findPartition(entry.partitionName)) === undefinedString);});
 
@@ -959,6 +981,7 @@ function createStore() {var partitionDefinitions = arguments.length > 0 && argum
 function addPartitions(partitionDefinitions) {
     if (!Array.isArray(partitionDefinitions))
     partitionDefinitions = [partitionDefinitions];
+    partitionDefinitions = copyPartitions(partitionDefinitions);
     // Do not allow a partition with the same name as an existing partition.
     partitionDefinitions = partitionDefinitions.filter(function (entry) {return (
             _typeof(findPartition(entry.partitionName)) === undefinedString);});
@@ -1077,61 +1100,6 @@ var getModuleData = function getModuleData(DEBUG, defaultState, dataChangeListen
     return { moduleData: defaultState };
 };
 
-
-function establishControllerConnections(_ref) {var module = _ref.module,partition = _ref.partition,uiComponent = _ref.uiComponent,storeKeys = _ref.storeKeys,changerKeys = _ref.changerKeys;
-    if (typeof storeKeys === 'undefined')
-    storeKeys = Object.keys(partition.defaultState);
-
-    // Create the causality-redux store and use the store partition above for definitions. 
-    // If the store has already been created elsewhere, then only the counterTen partition is created.
-    CausalityRedux.createStore(partition);
-    // Get access to the partition’s controller functions.
-    var partitionStore = CausalityRedux.store[partition.partitionName];
-
-    // Get a proxy to the store partition so that causality-redux can detect changes to the values of the partition.
-    var partitionState = partitionStore.partitionState;
-
-    var funcKeys = [];
-    var unsubscribers = [];
-    (0, _util.getKeys)(partition.changerDefinitions).forEach(function (changerKey) {
-        var entry = partition.changerDefinitions[changerKey];
-        if (entry.operation === CausalityRedux.operations.STATE_FUNCTION_CALL) {
-            unsubscribers.push(partitionStore.subscribe(entry.controllerFunction, changerKey));
-            funcKeys.push(changerKey);
-        }
-    });
-
-    if (typeof changerKeys === 'undefined')
-    changerKeys = funcKeys;
-
-    if (typeof uiComponent !== 'undefined') {
-        uiComponent = CausalityRedux.connectChangersAndStateToProps(
-        uiComponent, // React component to wrap.
-        partition.partitionName, // State partition
-        // This is an array of names of changers/action creators defined in the partition that you want
-        // passed into the props by causality-redux so that the component can call these functions.
-        changerKeys,
-        // This is an array of keys in COUNTTEN_STATE whose values you want passed into the props.
-        // Whenever any value associated with a key listed in this array changes in the causality-redux store,
-        // causality-redux will cause the component to render with the new values set in the props.
-        storeKeys);
-
-    }
-
-    if (module.hot) {
-        // Add the dispose handler that is to be called before this module is changed out for the new one. 
-        // This must be done for any module with side effects like adding event listeners etc.
-        module.hot.dispose(function () {
-            unsubscribers.forEach(function (unsubscriber) {return unsubscriber();});
-        });
-    }
-
-    return {
-        partitionState: partitionState,
-        uiComponent: uiComponent };
-
-}
-
 var CausalityRedux = {
     createStore: createStore,
     addPartitions: addPartitions,
@@ -1149,7 +1117,6 @@ var CausalityRedux = {
     getKeys: _util.getKeys,
     operations: operations,
     getModuleData: getModuleData,
-    establishControllerConnections: establishControllerConnections,
     get store() {
         return _store;
     },

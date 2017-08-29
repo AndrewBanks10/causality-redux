@@ -40,7 +40,7 @@ export function shallowEqual(objA, objB) {
 
 export function shallowCopy(obj) {
     if (!obj || typeof obj !== 'object') return obj;
-    return(shallowClone(obj))
+    return shallowClone(obj);
 }
 
 const proxyObjects = {};
