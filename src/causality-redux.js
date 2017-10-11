@@ -68,6 +68,7 @@ let _listeners = [];
 let _subscriberId = 0;
 let _partitionDefinitions = [];
 const _onStateChangeListeners = [];
+const _onGlobalStateChangeListeners = [];
 const _onListenerListeners = [];
 let _startState = null;
 let _completionListeners = [];
@@ -136,6 +137,14 @@ const indicateStateChange = (partitionName, type, operation, prevState, nextStat
             args: theirArgs
         };
         discloseStateChange(obj);
+    }
+};
+
+const indicateGlobalStateChange = (newState, isCopyState) => {
+    if (_onGlobalStateChangeListeners.length > 0) {
+        _onGlobalStateChangeListeners.forEach(e => {
+            e({ newState, isCopyState });
+        });
     }
 };
 
@@ -255,6 +264,13 @@ const executeSetState = (partitionName, theArg, noCheckCompare) => {
         partitionName
     };    
     _store.dispatch(actionObj);
+};
+
+const copyState = (stateToCopy) => {
+    if (!objectType(stateToCopy))
+        error('The Argument to copyState must be an object.');
+  
+    _store.dispatch({ stateToCopy, type: '' });
 };
 
 // setState for the partiton    
@@ -690,6 +706,13 @@ function setOptions(options = {}) {
             error('options.onStateChange must be a function.');
         _onStateChangeListeners.push(options.onStateChange);
     }
+
+    if ( options.onGlobalStateChange ) {
+        if ( typeof options.onGlobalStateChange !== 'function' )
+            error('options.onGlobalStateChange must be a function.');
+        _onGlobalStateChangeListeners.push(options.onGlobalStateChange);
+    }
+    
     if ( options.onListener ) {
         if ( typeof options.onListener !== 'function' )
             error('options.onListener must be a function.');
@@ -697,7 +720,8 @@ function setOptions(options = {}) {
     }
 }
     
-function init(partitionDefinitions, preloadedState, enhancer, options={}) {
+function init(partitionDefinitions, preloadedState, enhancer, options = {}) {
+
     if ( typeof partitionDefinitions === undefinedString )
         error('Missing first parameter partitionDefinitions.');
     setOptions(options);
@@ -713,6 +737,11 @@ function init(partitionDefinitions, preloadedState, enhancer, options={}) {
         //
         if (!_startState)
             _startState = shallowCopy(state);
+
+        if (action.stateToCopy) {
+            indicateGlobalStateChange( action.stateToCopy, true );
+            return action.stateToCopy;
+        }
         
         //
         // Redux assumes a change occurred if a new state object is returned from this reducer.
@@ -773,7 +802,7 @@ function init(partitionDefinitions, preloadedState, enhancer, options={}) {
         
         // For all listeners, disclose a state change.
         indicateStateChange(action.partitionName, action.type, action.operation, state[action.partitionName], newState[action.partitionName], action.changerName, action.reducerName, action.theirArgs);
-
+        indicateGlobalStateChange( newState , false);
         // This is used to determine what partition listeners are involved in this change.           
         _partitionsThatChanged[action.partitionName] = true;
         return newState;
@@ -844,7 +873,7 @@ function init(partitionDefinitions, preloadedState, enhancer, options={}) {
         });
     } else
         newObj = undefined;
-
+    
     _reduxStore = createReduxStore(generalReducer, newObj, enhancer);
     
     _store = Object.create(_reduxStore);
@@ -865,16 +894,9 @@ const verifyPlugin = (plugin) => {
     });
 };
 
-const copyPartitions = (partitionDefinitions) => {
-    const copied = [];
-    partitionDefinitions.forEach(entry => {
-        copied.push(shallowCopy(entry));
-    });
-    return copied;
-};
-
 // creates the causality-redux store.
 function createStore(partitionDefinitions = [], preloadedState, enhancer, options) {
+
     if (!Array.isArray(partitionDefinitions))
         partitionDefinitions = [partitionDefinitions];
     // This allows createStore to be called more than once for hot re-loading or other reasons.
@@ -883,7 +905,7 @@ function createStore(partitionDefinitions = [], preloadedState, enhancer, option
         setOptions(options);
         return _store;
     }
-    partitionDefinitions = copyPartitions(partitionDefinitions);
+
     partitionDefinitions = partitionDefinitions.filter(entry =>
         typeof findPartition(entry.partitionName) === undefinedString
     );
@@ -908,7 +930,7 @@ function createStore(partitionDefinitions = [], preloadedState, enhancer, option
 function addPartitions(partitionDefinitions) {
     if (!Array.isArray(partitionDefinitions))
         partitionDefinitions = [partitionDefinitions];
-    partitionDefinitions = copyPartitions(partitionDefinitions);
+
     // Do not allow a partition with the same name as an existing partition.
     partitionDefinitions = partitionDefinitions.filter(entry =>
         typeof findPartition(entry.partitionName) === undefinedString
@@ -1044,6 +1066,7 @@ const CausalityRedux = {
     getKeys,
     operations,
     getModuleData,
+    copyState,
     get store() {
         return _store;
     },

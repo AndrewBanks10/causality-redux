@@ -141,6 +141,7 @@ var _listeners = [];
 var _subscriberId = 0;
 var _partitionDefinitions = [];
 var _onStateChangeListeners = [];
+var _onGlobalStateChangeListeners = [];
 var _onListenerListeners = [];
 var _startState = null;
 var _completionListeners = [];
@@ -209,6 +210,14 @@ var indicateStateChange = function indicateStateChange(partitionName, type, oper
             args: theirArgs };
 
         discloseStateChange(obj);
+    }
+};
+
+var indicateGlobalStateChange = function indicateGlobalStateChange(newState, isCopyState) {
+    if (_onGlobalStateChangeListeners.length > 0) {
+        _onGlobalStateChangeListeners.forEach(function (e) {
+            e({ newState: newState, isCopyState: isCopyState });
+        });
     }
 };
 
@@ -328,6 +337,13 @@ var executeSetState = function executeSetState(partitionName, theArg, noCheckCom
         partitionName: partitionName };
 
     _store.dispatch(actionObj);
+};
+
+var copyState = function copyState(stateToCopy) {
+    if (!objectType(stateToCopy))
+    error('The Argument to copyState must be an object.');
+
+    _store.dispatch({ stateToCopy: stateToCopy, type: '' });
 };
 
 // setState for the partiton    
@@ -763,6 +779,13 @@ function setOptions() {var options = arguments.length > 0 && arguments[0] !== un
         error('options.onStateChange must be a function.');
         _onStateChangeListeners.push(options.onStateChange);
     }
+
+    if (options.onGlobalStateChange) {
+        if (typeof options.onGlobalStateChange !== 'function')
+        error('options.onGlobalStateChange must be a function.');
+        _onGlobalStateChangeListeners.push(options.onGlobalStateChange);
+    }
+
     if (options.onListener) {
         if (typeof options.onListener !== 'function')
         error('options.onListener must be a function.');
@@ -771,6 +794,7 @@ function setOptions() {var options = arguments.length > 0 && arguments[0] !== un
 }
 
 function init(partitionDefinitions, preloadedState, enhancer) {var options = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : {};
+
     if ((typeof partitionDefinitions === 'undefined' ? 'undefined' : _typeof(partitionDefinitions)) === undefinedString)
     error('Missing first parameter partitionDefinitions.');
     setOptions(options);
@@ -786,6 +810,11 @@ function init(partitionDefinitions, preloadedState, enhancer) {var options = arg
         //
         if (!_startState)
         _startState = (0, _util.shallowCopy)(state);
+
+        if (action.stateToCopy) {
+            indicateGlobalStateChange(action.stateToCopy, true);
+            return action.stateToCopy;
+        }
 
         //
         // Redux assumes a change occurred if a new state object is returned from this reducer.
@@ -846,7 +875,7 @@ function init(partitionDefinitions, preloadedState, enhancer) {var options = arg
 
         // For all listeners, disclose a state change.
         indicateStateChange(action.partitionName, action.type, action.operation, state[action.partitionName], newState[action.partitionName], action.changerName, action.reducerName, action.theirArgs);
-
+        indicateGlobalStateChange(newState, false);
         // This is used to determine what partition listeners are involved in this change.           
         _partitionsThatChanged[action.partitionName] = true;
         return newState;
@@ -938,16 +967,9 @@ var verifyPlugin = function verifyPlugin(plugin) {
     });
 };
 
-var copyPartitions = function copyPartitions(partitionDefinitions) {
-    var copied = [];
-    partitionDefinitions.forEach(function (entry) {
-        copied.push((0, _util.shallowCopy)(entry));
-    });
-    return copied;
-};
-
 // creates the causality-redux store.
 function createStore() {var partitionDefinitions = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : [];var preloadedState = arguments[1];var enhancer = arguments[2];var options = arguments[3];
+
     if (!Array.isArray(partitionDefinitions))
     partitionDefinitions = [partitionDefinitions];
     // This allows createStore to be called more than once for hot re-loading or other reasons.
@@ -956,7 +978,7 @@ function createStore() {var partitionDefinitions = arguments.length > 0 && argum
         setOptions(options);
         return _store;
     }
-    partitionDefinitions = copyPartitions(partitionDefinitions);
+
     partitionDefinitions = partitionDefinitions.filter(function (entry) {return (
             _typeof(findPartition(entry.partitionName)) === undefinedString);});
 
@@ -981,7 +1003,7 @@ function createStore() {var partitionDefinitions = arguments.length > 0 && argum
 function addPartitions(partitionDefinitions) {
     if (!Array.isArray(partitionDefinitions))
     partitionDefinitions = [partitionDefinitions];
-    partitionDefinitions = copyPartitions(partitionDefinitions);
+
     // Do not allow a partition with the same name as an existing partition.
     partitionDefinitions = partitionDefinitions.filter(function (entry) {return (
             _typeof(findPartition(entry.partitionName)) === undefinedString);});
@@ -1117,6 +1139,7 @@ var CausalityRedux = {
     getKeys: _util.getKeys,
     operations: operations,
     getModuleData: getModuleData,
+    copyState: copyState,
     get store() {
         return _store;
     },
