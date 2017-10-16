@@ -75,6 +75,7 @@ let _completionListeners = [];
 let _subscribers = [];
 let _plugins = [];
 const uniqueKeys = {};
+const _storeVersionKey = '@@@@@storeVersionKey@@@@@';
 
 let createReduxStore;
 if (typeof reduxCreateStore !== undefinedString) {
@@ -122,7 +123,7 @@ const discloseStateChange = (obj) => {
     });
 };
 
-const indicateStateChange = (partitionName, type, operation, prevState, nextState, changerName, reducerName, theirArgs) => {
+const indicateStateChange = (partitionName, type, operation, prevState, nextState, changerName, reducerName, theirArgs, storeVersion) => {
     if (_onStateChangeListeners.length > 0) {
         if (changerName === setStateChangerName)
             operation = setStateChangerName;
@@ -134,7 +135,8 @@ const indicateStateChange = (partitionName, type, operation, prevState, nextStat
             nextState,
             changerName,
             reducerName,
-            args: theirArgs
+            args: theirArgs,
+            [_storeVersionKey]: storeVersion
         };
         discloseStateChange(obj);
     }
@@ -722,7 +724,7 @@ function setOptions(options = {}) {
     
 function init(partitionDefinitions, preloadedState, enhancer, options = {}) {
 
-    if ( typeof partitionDefinitions === undefinedString )
+    if (typeof partitionDefinitions === undefinedString)
         error('Missing first parameter partitionDefinitions.');
     setOptions(options);
 
@@ -739,7 +741,7 @@ function init(partitionDefinitions, preloadedState, enhancer, options = {}) {
             _startState = shallowCopy(state);
 
         if (action.stateToCopy) {
-            indicateGlobalStateChange( action.stateToCopy, true );
+            indicateGlobalStateChange(action.stateToCopy, true);
             return action.stateToCopy;
         }
         
@@ -757,7 +759,7 @@ function init(partitionDefinitions, preloadedState, enhancer, options = {}) {
             } else {
                 // This is for a pre-hydrated state.
                 getKeys(action.defaultState).forEach(key => {
-                    if (typeof newState[action.partitionName][key] === undefinedString) 
+                    if (typeof newState[action.partitionName][key] === undefinedString)
                         newState[action.partitionName][key] = action.defaultState[key];
                 });
             }
@@ -766,16 +768,18 @@ function init(partitionDefinitions, preloadedState, enhancer, options = {}) {
             } else {
                 // This is for a pre-hydrated state.
                 getKeys(action.defaultState).forEach(key => {
-                    if (typeof _startState[action.partitionName][key] === undefinedString) 
+                    if (typeof _startState[action.partitionName][key] === undefinedString)
                         _startState[action.partitionName][key] = action.defaultState[key];
                 });
             }
+            if (typeof newState[_storeVersionKey] === undefinedString)
+                newState[_storeVersionKey] = 0;
             return newState;
         }
 
         // Call the reducer for the associated changer on the partition state.
         if (action.isSetState)
-            newState[action.partitionName] = merge({}, state[action.partitionName], action.theirArgs[0]);    
+            newState[action.partitionName] = merge({}, state[action.partitionName], action.theirArgs[0]);
         else if (typeof action.reducer === 'function')
             newState[action.partitionName] = action.reducer(state[action.partitionName], action);
         else if (typeof action.pluginCallback === 'function') {
@@ -794,17 +798,20 @@ function init(partitionDefinitions, preloadedState, enhancer, options = {}) {
         // and an array that had an element pushed directly in the redux store object  will not regester as a change.
         // A noCheckCompare on setState is allowed to proceed unchecked.
         //
-        if ( !action.noCheckCompare && shallowEqual( newState[action.partitionName], state[action.partitionName] ) )
+        if (!action.noCheckCompare && shallowEqual(newState[action.partitionName], state[action.partitionName]))
             return state;
         
         // This only applies to ancient browsers.
         handleAddKeysToProxyObject(_store, action.partitionName, state, newState);
+
+        _partitionsThatChanged[action.partitionName] = true;
+
+        ++newState[_storeVersionKey];
         
         // For all listeners, disclose a state change.
-        indicateStateChange(action.partitionName, action.type, action.operation, state[action.partitionName], newState[action.partitionName], action.changerName, action.reducerName, action.theirArgs);
-        indicateGlobalStateChange( newState , false);
+        indicateStateChange(action.partitionName, action.type, action.operation, state[action.partitionName], newState[action.partitionName], action.changerName, action.reducerName, action.theirArgs, newState[_storeVersionKey]);
+        indicateGlobalStateChange(newState, false);
         // This is used to determine what partition listeners are involved in this change.           
-        _partitionsThatChanged[action.partitionName] = true;
         return newState;
     };
 
@@ -930,6 +937,11 @@ function createStore(partitionDefinitions = [], preloadedState, enhancer, option
 function addPartitions(partitionDefinitions) {
     if (!Array.isArray(partitionDefinitions))
         partitionDefinitions = [partitionDefinitions];
+    
+    partitionDefinitions.forEach(entry => {
+        if (entry.partitionName === _storeVersionKey)
+            error('Invalid partition name.');      
+    });
 
     // Do not allow a partition with the same name as an existing partition.
     partitionDefinitions = partitionDefinitions.filter(entry =>
@@ -1081,6 +1093,9 @@ const CausalityRedux = {
     },
     get onListener() {
         return discloseToListeners;
+    },
+    get storeVersionKey() {
+        return _storeVersionKey;
     }
 };
 

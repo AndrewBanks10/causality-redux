@@ -132,6 +132,7 @@ Object.keys(hydrateState).forEach( key => {
     stateObj[key] = CausalityRedux.merge(stateObj[key], hydrateState[key]);
 });
 const theState = CausalityRedux.reduxStore.getState();
+stateObj[CausalityRedux.storeVersionKey] = theState[CausalityRedux.storeVersionKey];
 const hydrateStateOK = isEqual(theState, stateObj);
 
 
