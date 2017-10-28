@@ -76,6 +76,7 @@ let _subscribers = [];
 let _plugins = [];
 const uniqueKeys = {};
 const _storeVersionKey = '@@@@@storeVersionKey@@@@@';
+const _storeHistoryKey = '@@@@@history@@@@@';
 
 let createReduxStore;
 if (typeof reduxCreateStore !== undefinedString) {
@@ -1061,6 +1062,17 @@ const getModuleData = (DEBUG, defaultState, dataChangeListener) => {
     return { moduleData: defaultState };
 };
 
+const shallowCopyStorePartitions = () => {
+    const store = CausalityRedux.store.getState();
+    // Shallow copy the partitions.
+    const storeCopy = CausalityRedux.shallowCopy(store);
+    // Shallow copy each key in each partition.
+    CausalityRedux.getKeys(storeCopy).forEach(key => {
+        storeCopy[key] = CausalityRedux.shallowCopy(store[key]);
+    });
+    return storeCopy;
+};
+
 const CausalityRedux = {
     createStore,
     addPartitions,
@@ -1079,6 +1091,7 @@ const CausalityRedux = {
     operations,
     getModuleData,
     copyState,
+    shallowCopyStorePartitions,
     get store() {
         return _store;
     },
@@ -1096,6 +1109,9 @@ const CausalityRedux = {
     },
     get storeVersionKey() {
         return _storeVersionKey;
+    },
+    get storeHistoryKey() {
+        return _storeHistoryKey;
     }
 };
 

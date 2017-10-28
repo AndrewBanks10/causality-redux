@@ -149,6 +149,7 @@ var _subscribers = [];
 var _plugins = [];
 var uniqueKeys = {};
 var _storeVersionKey = '@@@@@storeVersionKey@@@@@';
+var _storeHistoryKey = '@@@@@history@@@@@';
 
 var createReduxStore = void 0;
 if ((typeof _redux.createStore === 'undefined' ? 'undefined' : _typeof(_redux.createStore)) !== undefinedString) {
@@ -1134,6 +1135,17 @@ var getModuleData = function getModuleData(DEBUG, defaultState, dataChangeListen
     return { moduleData: defaultState };
 };
 
+var shallowCopyStorePartitions = function shallowCopyStorePartitions() {
+    var store = CausalityRedux.store.getState();
+    // Shallow copy the partitions.
+    var storeCopy = CausalityRedux.shallowCopy(store);
+    // Shallow copy each key in each partition.
+    CausalityRedux.getKeys(storeCopy).forEach(function (key) {
+        storeCopy[key] = CausalityRedux.shallowCopy(store[key]);
+    });
+    return storeCopy;
+};
+
 var CausalityRedux = {
     createStore: createStore,
     addPartitions: addPartitions,
@@ -1152,6 +1164,7 @@ var CausalityRedux = {
     operations: operations,
     getModuleData: getModuleData,
     copyState: copyState,
+    shallowCopyStorePartitions: shallowCopyStorePartitions,
     get store() {
         return _store;
     },
@@ -1169,6 +1182,9 @@ var CausalityRedux = {
     },
     get storeVersionKey() {
         return _storeVersionKey;
+    },
+    get storeHistoryKey() {
+        return _storeHistoryKey;
     } };exports.default =
 
 
