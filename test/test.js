@@ -668,7 +668,7 @@ const defaultData = {
 
 // This is not called in production.
 let mdSubscriberCalled = false;
-const changeListener = dataChangedObject => {
+const changeListener = () => {
     mdSubscriberCalled = true;
 };
 
@@ -724,5 +724,33 @@ describe('Production module data test', function () {
     verifyStateAction2('moduleData subscriber not called', mdSubscriberCalled, false, 'moduleData subscriber not called.');
 });
 
+describe('CausalityRedux storeVersionKey top level key', function () {
+    it('storeVersionKey is valid.', function () {
+        const state = CausalityRedux.store.getState();
+        assert(typeof state[CausalityRedux.storeVersionKey] === 'number');
+    });
+});
 
+describe('copyState test', function () {
+    it('Current state is not the defaultState.', function () {
+        const state = CausalityRedux.store.getState();
+        const isEq1 = isEqual(state, CausalityRedux.defaultState);
+        assert(!isEq1);
+    });
+    it('Current state is the defaultState after copyState.', function () {
+        CausalityRedux.copyState(CausalityRedux.defaultState);
+        const state = CausalityRedux.store.getState();
+        const isEq2 = isEqual(state, CausalityRedux.defaultState);
+        assert(isEq2);
+    });
+});
+
+describe('shallowCopyStorePartitions test', function () {
+    it('Returned state from shallowCopyStorePartitions is correct.', function () {
+        const state1 = CausalityRedux.store.getState();
+        const state2 = CausalityRedux.shallowCopyStorePartitions();
+        const isEq1 = isEqual(state1, state2);
+        assert(isEq1);
+    });
+});
 
