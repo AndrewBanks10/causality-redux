@@ -63,7 +63,7 @@
 /******/ 	__webpack_require__.p = "";
 /******/
 /******/ 	// Load entry module and return exports
-/******/ 	return __webpack_require__(__webpack_require__.s = 2);
+/******/ 	return __webpack_require__(__webpack_require__.s = 3);
 /******/ })
 /************************************************************************/
 /******/ ([
@@ -71,9 +71,29 @@
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
+/*!
+ * is-extendable <https://github.com/jonschlinkert/is-extendable>
+ *
+ * Copyright (c) 2015, Jon Schlinkert.
+ * Licensed under the MIT License.
+ */
+
+
+
+module.exports = function isExtendable(val) {
+  return typeof val !== 'undefined' && val !== null
+    && (typeof val === 'object' || typeof val === 'function');
+};
+
+
+/***/ }),
+/* 1 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
 Object.defineProperty(exports, "__esModule", { value: true });var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) {return typeof obj;} : function (obj) {return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj;}; /** @preserve © 2017 Andrew Banks ALL RIGHTS RESERVED */
-var _redux = __webpack_require__(11);
-var _util = __webpack_require__(3);function _toConsumableArray(arr) {if (Array.isArray(arr)) {for (var i = 0, arr2 = Array(arr.length); i < arr.length; i++) {arr2[i] = arr[i];}return arr2;} else {return Array.from(arr);}}function _defineProperty(obj, key, value) {if (key in obj) {Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true });} else {obj[key] = value;}return obj;}
+var _redux = __webpack_require__(10);
+var _util = __webpack_require__(4);function _toConsumableArray(arr) {if (Array.isArray(arr)) {for (var i = 0, arr2 = Array(arr.length); i < arr.length; i++) {arr2[i] = arr[i];}return arr2;} else {return Array.from(arr);}}function _defineProperty(obj, key, value) {if (key in obj) {Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true });} else {obj[key] = value;}return obj;}
 
 var operations = {
     STATE_COPY: 1,
@@ -504,10 +524,12 @@ var buildStateEntryChangersAndReducers = function buildStateEntryChangersAndRedu
                         if (!Array.isArray(listenerEntry.stateEntries))
                         error('Listenername=' + listenerEntry.listenerName + ', partitionName=' + listenerEntry.partitionName + ' is not an array.');
 
-                        listenerEntry.stateEntries.forEach(function (e) {
-                            if (e === changerName)
-                            listenersToCall.push(listenerEntry);
-                        });
+                        if (listenerEntry.partitionName === partitionName) {
+                            listenerEntry.stateEntries.forEach(function (e) {
+                                if (e === changerName)
+                                listenersToCall.push(listenerEntry);
+                            });
+                        }
                     });
                     if (listenersToCall.length === 0)
                     error('There is no subscriber to ' + changerName + ' in ' + partitionName + '.');
@@ -1191,7 +1213,7 @@ var CausalityRedux = {
 CausalityRedux;
 
 /***/ }),
-/* 1 */
+/* 2 */
 /***/ (function(module, exports) {
 
 var g;
@@ -1218,20 +1240,20 @@ module.exports = g;
 
 
 /***/ }),
-/* 2 */
+/* 3 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
-/* WEBPACK VAR INJECTION */(function(global) {var _causalityRedux = __webpack_require__(0);var _causalityRedux2 = _interopRequireDefault(_causalityRedux);function _interopRequireDefault(obj) {return obj && obj.__esModule ? obj : { default: obj };}
+/* WEBPACK VAR INJECTION */(function(global) {var _causalityRedux = __webpack_require__(1);var _causalityRedux2 = _interopRequireDefault(_causalityRedux);function _interopRequireDefault(obj) {return obj && obj.__esModule ? obj : { default: obj };}
 
 if (typeof window !== 'undefined')
 window['CausalityRedux'] = _causalityRedux2.default;else
 if (typeof global !== 'undefined')
 global['CausalityRedux'] = _causalityRedux2.default;
-/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(1)))
+/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(2)))
 
 /***/ }),
-/* 3 */
+/* 4 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -1275,7 +1297,7 @@ shallowEqual = shallowEqual;exports.
 
 
 
-shallowCopy = shallowCopy;function _defineProperty(obj, key, value) {if (key in obj) {Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true });} else {obj[key] = value;}return obj;}function _toConsumableArray(arr) {if (Array.isArray(arr)) {for (var i = 0, arr2 = Array(arr.length); i < arr.length; i++) {arr2[i] = arr[i];}return arr2;} else {return Array.from(arr);}}var objectAssign = __webpack_require__(8);var shallowClone = __webpack_require__(9);var merge = exports.merge = typeof Object.assign === 'function' ? Object.assign : objectAssign;var getKeysWOSymbols = function getKeysWOSymbols(obj) {if (!obj) return [];return Object.keys(obj);};var getKeysWSymbols = function getKeysWSymbols(obj) {if (!obj) return [];return [].concat(_toConsumableArray(Object.keys(obj)), _toConsumableArray(Object.getOwnPropertySymbols(obj)));};var getKeys = getKeysWOSymbols;if (typeof Object.getOwnPropertySymbols === 'function') exports.getKeys = getKeys = getKeysWSymbols;exports.getKeys = getKeys;function shallowEqual(objA, objB) {if (objA === objB) return true;var keysA = getKeys(objA);var keysB = getKeys(objB);if (keysA.length !== keysB.length) return false;var hasOwn = Object.prototype.hasOwnProperty;for (var i = 0; i < keysA.length; i++) {if (!hasOwn.call(objB, keysA[i]) || objA[keysA[i]] !== objB[keysA[i]]) {return false;}}return true;}function shallowCopy(obj) {
+shallowCopy = shallowCopy;function _defineProperty(obj, key, value) {if (key in obj) {Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true });} else {obj[key] = value;}return obj;}function _toConsumableArray(arr) {if (Array.isArray(arr)) {for (var i = 0, arr2 = Array(arr.length); i < arr.length; i++) {arr2[i] = arr[i];}return arr2;} else {return Array.from(arr);}}var objectAssign = __webpack_require__(7);var shallowClone = __webpack_require__(8);var merge = exports.merge = typeof Object.assign === 'function' ? Object.assign : objectAssign;var getKeysWOSymbols = function getKeysWOSymbols(obj) {if (!obj) return [];return Object.keys(obj);};var getKeysWSymbols = function getKeysWSymbols(obj) {if (!obj) return [];return [].concat(_toConsumableArray(Object.keys(obj)), _toConsumableArray(Object.getOwnPropertySymbols(obj)));};var getKeys = getKeysWOSymbols;if (typeof Object.getOwnPropertySymbols === 'function') exports.getKeys = getKeys = getKeysWSymbols;exports.getKeys = getKeys;function shallowEqual(objA, objB) {if (objA === objB) return true;var keysA = getKeys(objA);var keysB = getKeys(objB);if (keysA.length !== keysB.length) return false;var hasOwn = Object.prototype.hasOwnProperty;for (var i = 0; i < keysA.length; i++) {if (!hasOwn.call(objB, keysA[i]) || objA[keysA[i]] !== objB[keysA[i]]) {return false;}}return true;}function shallowCopy(obj) {
     if (!obj || (typeof obj === 'undefined' ? 'undefined' : _typeof(obj)) !== 'object') return obj;
     return shallowClone(obj);
 }
@@ -1416,33 +1438,13 @@ if (!Array.prototype.findIndex) {
 }
 
 /***/ }),
-/* 4 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-/*!
- * is-extendable <https://github.com/jonschlinkert/is-extendable>
- *
- * Copyright (c) 2015, Jon Schlinkert.
- * Licensed under the MIT License.
- */
-
-
-
-module.exports = function isExtendable(val) {
-  return typeof val !== 'undefined' && val !== null
-    && (typeof val === 'object' || typeof val === 'function');
-};
-
-
-/***/ }),
 /* 5 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 
-var isObject = __webpack_require__(7);
+var isObject = __webpack_require__(0);
 var forIn = __webpack_require__(6);
 
 function mixin(target, objects) {
@@ -1502,26 +1504,6 @@ module.exports = function forIn(obj, fn, thisArg) {
 
 /***/ }),
 /* 7 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-/*!
- * is-extendable <https://github.com/jonschlinkert/is-extendable>
- *
- * Copyright (c) 2015, Jon Schlinkert.
- * Licensed under the MIT License.
- */
-
-
-
-module.exports = function isExtendable(val) {
-  return typeof val !== 'undefined' && val !== null
-    && (typeof val === 'object' || typeof val === 'function');
-};
-
-
-/***/ }),
-/* 8 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -1618,7 +1600,7 @@ module.exports = shouldUseNative() ? Object.assign : function (target, source) {
 
 
 /***/ }),
-/* 9 */
+/* 8 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -1631,9 +1613,9 @@ module.exports = shouldUseNative() ? Object.assign : function (target, source) {
 
 
 
-var isObject = __webpack_require__(4);
+var isObject = __webpack_require__(0);
 var mixin = __webpack_require__(5);
-var typeOf = __webpack_require__(10);
+var typeOf = __webpack_require__(9);
 
 /**
  * Shallow copy an object, array or primitive.
@@ -1682,7 +1664,7 @@ module.exports = clone;
 
 
 /***/ }),
-/* 10 */
+/* 9 */
 /***/ (function(module, exports) {
 
 var toString = Object.prototype.toString;
@@ -1775,13 +1757,20 @@ module.exports = function kindOf(val) {
   if (type === '[object Symbol]') {
     return 'symbol';
   }
+  
   if (type === '[object Map Iterator]') {
     return 'mapiterator';
   }
   if (type === '[object Set Iterator]') {
     return 'setiterator';
   }
-
+  if (type === '[object String Iterator]') {
+    return 'stringiterator';
+  }
+  if (type === '[object Array Iterator]') {
+    return 'arrayiterator';
+  }
+  
   // typed arrays
   if (type === '[object Int8Array]') {
     return 'int8array';
@@ -1828,7 +1817,7 @@ function isBuffer(val) {
 
 
 /***/ }),
-/* 11 */
+/* 10 */
 /***/ (function(module, exports) {
 
 module.exports = Redux;

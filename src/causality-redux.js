@@ -431,10 +431,12 @@ const buildStateEntryChangersAndReducers = (entry) => {
                         if (!Array.isArray(listenerEntry.stateEntries))
                             error(`Listenername=${listenerEntry.listenerName}, partitionName=${listenerEntry.partitionName} is not an array.`);
 
-                        listenerEntry.stateEntries.forEach(e => {
-                            if (e === changerName)
-                                listenersToCall.push(listenerEntry);
-                        });
+                        if (listenerEntry.partitionName === partitionName) {
+                            listenerEntry.stateEntries.forEach(e => {
+                                if (e === changerName)
+                                    listenersToCall.push(listenerEntry);
+                            });
+                        }
                     });
                     if (listenersToCall.length === 0)
                         error(`There is no subscriber to ${changerName} in ${partitionName}.`);
