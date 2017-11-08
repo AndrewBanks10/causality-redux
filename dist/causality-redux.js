@@ -169,6 +169,8 @@ var _subscribers = [];
 var _plugins = [];
 var uniqueKeys = {};
 var _storeVersionKey = '@@@@@storeVersionKey@@@@@';
+var _globalDataKey = '@@@@@globalDataKey@@@@@';
+
 var _storeHistoryKey = '@@@@@history@@@@@';
 
 var createReduxStore = void 0;
@@ -1035,7 +1037,7 @@ function addPartitions(partitionDefinitions) {
     partitionDefinitions = [partitionDefinitions];
 
     partitionDefinitions.forEach(function (entry) {
-        if (entry.partitionName === _storeVersionKey)
+        if (entry.partitionName === _storeVersionKey || entry.partitionName === _globalDataKey)
         error('Invalid partition name.');
     });
 
@@ -1204,6 +1206,9 @@ var CausalityRedux = {
     },
     get storeVersionKey() {
         return _storeVersionKey;
+    },
+    get globalDataKey() {
+        return _globalDataKey;
     },
     get storeHistoryKey() {
         return _storeHistoryKey;

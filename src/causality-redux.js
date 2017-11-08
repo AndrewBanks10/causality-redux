@@ -76,6 +76,8 @@ let _subscribers = [];
 let _plugins = [];
 const uniqueKeys = {};
 const _storeVersionKey = '@@@@@storeVersionKey@@@@@';
+const _globalDataKey = '@@@@@globalDataKey@@@@@';
+
 const _storeHistoryKey = '@@@@@history@@@@@';
 
 let createReduxStore;
@@ -942,7 +944,7 @@ function addPartitions(partitionDefinitions) {
         partitionDefinitions = [partitionDefinitions];
     
     partitionDefinitions.forEach(entry => {
-        if (entry.partitionName === _storeVersionKey)
+        if (entry.partitionName === _storeVersionKey || entry.partitionName === _globalDataKey)
             error('Invalid partition name.');      
     });
 
@@ -1111,6 +1113,9 @@ const CausalityRedux = {
     },
     get storeVersionKey() {
         return _storeVersionKey;
+    },
+    get globalDataKey() {
+        return _globalDataKey;
     },
     get storeHistoryKey() {
         return _storeHistoryKey;
