@@ -2,6 +2,7 @@ const objectAssign = require('object-assign');
 const shallowClone = require('shallow-clone');
 
 export const merge = typeof Object.assign === 'function' ? Object.assign : objectAssign;      
+export const error = (msg) => { throw new Error(`CausalityRedux: ${msg}`); };
 
 const getKeysWOSymbols = (obj) => {
     if (!obj) return [];

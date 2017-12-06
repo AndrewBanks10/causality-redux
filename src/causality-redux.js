@@ -1,7 +1,7 @@
 ﻿/** @preserve © 2017 Andrew Banks ALL RIGHTS RESERVED */
 import { createStore as reduxCreateStore } from 'redux';
-import { handleAddKeysToProxyObject, getPartitionProxy, merge, getKeys, shallowEqual, shallowCopy } from './util';
-
+import { error, handleAddKeysToProxyObject, getPartitionProxy, merge, getKeys, shallowEqual, shallowCopy } from './util';
+import combineReducers from './combineReducers';
 const operations = {
     STATE_COPY:                 1,
     STATE_ARRAY_ADD:            2,
@@ -58,6 +58,7 @@ const undefinedString = 'undefined';
 const _defaultState = {};
 
 const internalActionType = '@@causality-redux/INIT';
+const internalReduxActionType = '@@causality-redux/Redux/INIT';
 
 const setStateChangerName = 'setState';
 
@@ -67,6 +68,7 @@ let _partitionsThatChanged = {};
 let _listeners = [];
 let _subscriberId = 0;
 let _partitionDefinitions = [];
+let _reduxReducers = {};
 const _onStateChangeListeners = [];
 const _onGlobalStateChangeListeners = [];
 const _onListenerListeners = [];
@@ -77,8 +79,9 @@ let _plugins = [];
 const uniqueKeys = {};
 const _storeVersionKey = '@@@@@storeVersionKey@@@@@';
 const _globalDataKey = '@@@@@globalDataKey@@@@@';
-
 const _storeHistoryKey = '@@@@@history@@@@@';
+const _uniqueKeyTemplate = '@@@@@causalityredux';
+const _causalityreduxAction = '@@@@@causalityreduxAction@@@@@';
 
 let createReduxStore;
 if (typeof reduxCreateStore !== undefinedString) {
@@ -93,8 +96,6 @@ if (typeof createReduxStore === undefinedString) {
         error('Redux is undefined');
 }
 /*eslint-enable */
-
-const error = (msg) => { throw new Error(`CausalityRedux: ${msg}`); };
 
 const objectType = (obj) => Object.prototype.toString.call(obj).slice(8, -1);
 
@@ -164,6 +165,12 @@ const indicateListener = (partitionName, nextState, listenerName) => {
     }
 };
 
+const internalDispatch = action => {
+    action[_causalityreduxAction] = true;
+    // redux dispatch
+    _store.dispatch(action);
+};
+
 // Can only subscribe as a listener on a partition.  
 const internalSubscriber = (listener, partitionName, stateEntries, listenerName) => {
     const arr = [...stateEntries];
@@ -184,7 +191,7 @@ const internalExecuteChanger = (store, stateEntry, changerName, reducerName, cha
             error(`Changer ${changerName} must return an action object.`);
             return;
         }
-    // This is operations.STATE_FUNCTION_CALL. No dispatch action is to be taken.
+    // This is operations.STATE_FUNCTION_CALL. No dispatch action is to be taken so no reducer.
     } else if (typeof action === undefinedString)
         return;
     action.type = typeof action.type === undefinedString ? '' : action.type;
@@ -192,8 +199,7 @@ const internalExecuteChanger = (store, stateEntry, changerName, reducerName, cha
     action.reducer = stateEntry.reducers[reducerName];
     action.partitionName = stateEntry.partitionName;
     action.reducerName = reducerName;
-    // redux dispatch
-    store.dispatch(action);
+    internalDispatch(action);
 };
 
 //
@@ -266,16 +272,17 @@ const executeSetState = (partitionName, theArg, noCheckCompare) => {
         arguments: [],
         type: setStateChangerName,
         changerName: setStateChangerName,
-        partitionName
+        partitionName,
+        [_causalityreduxAction]: true
     };    
-    _store.dispatch(actionObj);
+    internalDispatch(actionObj);
 };
 
 const copyState = (stateToCopy) => {
     if (!objectType(stateToCopy))
         error('The Argument to copyState must be an object.');
   
-    _store.dispatch({ stateToCopy, type: '' });
+    internalDispatch({ stateToCopy, type: '' });
 };
 
 // setState for the partiton    
@@ -726,99 +733,106 @@ function setOptions(options = {}) {
         _onListenerListeners.push(options.onListener);
     }
 }
+
+//
+// This is the general reducer for redux. When a changer is called, the reducer for the changer was placed
+// in the action object so it is known what reducer to call in the code below.
+//
+const generalReducer = (state = _defaultState, action) => {
+    //
+    // The _startState is needed for the base case of listeners to determine whether a change occurred to some value in the partition.
+    // We can't just use _defaultState because of possible hydration. 
+    //
+    if (!_startState)
+        _startState = shallowCopy(state);
+
+    if (action.stateToCopy) {
+        indicateGlobalStateChange(action.stateToCopy, true);
+        return action.stateToCopy;
+    }
+    
+    //
+    // Redux assumes a change occurred if a new state object is returned from this reducer.
+    // Essentially, this means a new pointer.
+    // So, set up a new one in case something changes.
+    //
+    const newState = shallowCopy(state);
+
+    // This handles correcting the redux store for partitions defined after the redux store is created.            
+    if (action.type === internalActionType) {
+        if (typeof newState[action.partitionName] === undefinedString) {
+            newState[action.partitionName] = shallowCopy(action.defaultState);
+        } else {
+            // This is for a pre-hydrated state.
+            getKeys(action.defaultState).forEach(key => {
+                if (typeof newState[action.partitionName][key] === undefinedString)
+                    newState[action.partitionName][key] = action.defaultState[key];
+            });
+        }
+        if (typeof _startState[action.partitionName] === undefinedString) {
+            _startState[action.partitionName] = shallowCopy(action.defaultState);
+        } else {
+            // This is for a pre-hydrated state.
+            getKeys(action.defaultState).forEach(key => {
+                if (typeof _startState[action.partitionName][key] === undefinedString)
+                    _startState[action.partitionName][key] = action.defaultState[key];
+            });
+        }
+        if (typeof newState[_storeVersionKey] === undefinedString)
+            newState[_storeVersionKey] = 0;
+        return newState;
+    }
+    // This handles a redux hydration.           
+    if (action.type === internalReduxActionType) {
+        return merge({}, state, action.defaultState);
+    }
+
+    // Call the reducer for the associated changer on the partition state.
+    if (action.isSetState)
+        newState[action.partitionName] = merge({}, state[action.partitionName], action.theirArgs[0]);
+    else if (typeof action.reducer === 'function')
+        newState[action.partitionName] = action.reducer(state[action.partitionName], action);
+    else if (typeof action.pluginCallback === 'function') {
+        // The plugin might set a redux store value which is illegal while in the reducer.
+        // So, use a setTimeout so that we are guaranteed to not be in this reducer.
+        setTimeout(action.pluginCallback, 1, ...action.theirArgs);
+        return state;
+    } else
+        return state; // This is for the redux init   
+    
+    //
+    // Check to see if anything is different. If not, just return the original state.
+    // This is shallow equal. It determines equality only on the keys of state.
+    // So, if a state entry at a key is a basic type, then equality is performed.
+    // If the entry is an object, only pointer equality is checked. Lower objects may be different
+    // and an array that had an element pushed directly in the redux store object  will not regester as a change.
+    // A noCheckCompare on setState is allowed to proceed unchecked.
+    //
+    if (!action.noCheckCompare && shallowEqual(newState[action.partitionName], state[action.partitionName]))
+        return state;
+    
+    // This only applies to ancient browsers.
+    handleAddKeysToProxyObject(_store, action.partitionName, state, newState);
+
+    _partitionsThatChanged[action.partitionName] = true;
+
+    if (typeof newState[_storeVersionKey] === undefinedString)
+        newState[_storeVersionKey] = 0;
+    ++newState[_storeVersionKey];
+    
+    // For all listeners, disclose a state change.
+    indicateStateChange(action.partitionName, action.type, action.operation, state[action.partitionName], newState[action.partitionName], action.changerName, action.reducerName, action.theirArgs, newState[_storeVersionKey]);
+    indicateGlobalStateChange(newState, false);
+    // This is used to determine what partition listeners are involved in this change.           
+    return newState;
+};
+
     
 function init(partitionDefinitions, preloadedState, enhancer, options = {}) {
 
     if (typeof partitionDefinitions === undefinedString)
         error('Missing first parameter partitionDefinitions.');
     setOptions(options);
-
-    //
-    // This is the general reducer for redux. When a changer is called, the reducer for the changer was placed
-    // in the action object so it is known what reducer to call in the code below.
-    //
-    const generalReducer = (state = _defaultState, action) => {
-        //
-        // The _startState is needed for the base case of listeners to determine whether a change occurred to some value in the partition.
-        // We can't just use _defaultState because of possible hydration. 
-        //
-        if (!_startState)
-            _startState = shallowCopy(state);
-
-        if (action.stateToCopy) {
-            indicateGlobalStateChange(action.stateToCopy, true);
-            return action.stateToCopy;
-        }
-        
-        //
-        // Redux assumes a change occurred if a new state object is returned from this reducer.
-        // Essentially, this means a new pointer.
-        // So, set up a new one in case something changes.
-        //
-        const newState = shallowCopy(state);
-
-        // This handles correcting the redux store for partitions defined after the redux store is created.            
-        if (action.type === internalActionType) {
-            if (typeof newState[action.partitionName] === undefinedString) {
-                newState[action.partitionName] = shallowCopy(action.defaultState);
-            } else {
-                // This is for a pre-hydrated state.
-                getKeys(action.defaultState).forEach(key => {
-                    if (typeof newState[action.partitionName][key] === undefinedString)
-                        newState[action.partitionName][key] = action.defaultState[key];
-                });
-            }
-            if (typeof _startState[action.partitionName] === undefinedString) {
-                _startState[action.partitionName] = shallowCopy(action.defaultState);
-            } else {
-                // This is for a pre-hydrated state.
-                getKeys(action.defaultState).forEach(key => {
-                    if (typeof _startState[action.partitionName][key] === undefinedString)
-                        _startState[action.partitionName][key] = action.defaultState[key];
-                });
-            }
-            if (typeof newState[_storeVersionKey] === undefinedString)
-                newState[_storeVersionKey] = 0;
-            return newState;
-        }
-
-        // Call the reducer for the associated changer on the partition state.
-        if (action.isSetState)
-            newState[action.partitionName] = merge({}, state[action.partitionName], action.theirArgs[0]);
-        else if (typeof action.reducer === 'function')
-            newState[action.partitionName] = action.reducer(state[action.partitionName], action);
-        else if (typeof action.pluginCallback === 'function') {
-            // The plugin might set a redux store value which is illegal while in the reducer.
-            // So, use a setTimeout so that we are guaranteed to not be in this reducer.
-            setTimeout(action.pluginCallback, 1, ...action.theirArgs);
-            return state;
-        } else
-            return state; // This is for the redux init   
-        
-        //
-        // Check to see if anything is different. If not, just return the original state.
-        // This is shallow equal. It determines equality only on the keys of state.
-        // So, if a state entry at a key is a basic type, then equality is performed.
-        // If the entry is an object, only pointer equality is checked. Lower objects may be different
-        // and an array that had an element pushed directly in the redux store object  will not regester as a change.
-        // A noCheckCompare on setState is allowed to proceed unchecked.
-        //
-        if (!action.noCheckCompare && shallowEqual(newState[action.partitionName], state[action.partitionName]))
-            return state;
-        
-        // This only applies to ancient browsers.
-        handleAddKeysToProxyObject(_store, action.partitionName, state, newState);
-
-        _partitionsThatChanged[action.partitionName] = true;
-
-        ++newState[_storeVersionKey];
-        
-        // For all listeners, disclose a state change.
-        indicateStateChange(action.partitionName, action.type, action.operation, state[action.partitionName], newState[action.partitionName], action.changerName, action.reducerName, action.theirArgs, newState[_storeVersionKey]);
-        indicateGlobalStateChange(newState, false);
-        // This is used to determine what partition listeners are involved in this change.           
-        return newState;
-    };
 
     //
     // One listener for redux
@@ -886,7 +900,19 @@ function init(partitionDefinitions, preloadedState, enhancer, options = {}) {
     } else
         newObj = undefined;
     
-    _reduxStore = createReduxStore(generalReducer, newObj, enhancer);
+    if ( !_reduxStore )
+        _reduxStore = createReduxStore(generalReducer, newObj, enhancer);
+    else {
+        if (newObj) {
+            _startState = newObj;
+            const action = {
+                type: internalReduxActionType,
+                defaultState: newObj
+            };
+            _store = _reduxStore;
+            internalDispatch(action);
+        }    
+    }
     
     _store = Object.create(_reduxStore);
     _store.subscribe(generalListener);
@@ -944,7 +970,7 @@ function addPartitions(partitionDefinitions) {
         partitionDefinitions = [partitionDefinitions];
     
     partitionDefinitions.forEach(entry => {
-        if (entry.partitionName === _storeVersionKey || entry.partitionName === _globalDataKey)
+        if (entry.partitionName === _storeVersionKey)
             error('Invalid partition name.');      
     });
 
@@ -955,12 +981,14 @@ function addPartitions(partitionDefinitions) {
     if (_store !== null) {
         partitionDefinitions.forEach(entry => {
             _defaultState[entry.partitionName] = shallowCopy(entry.defaultState);
-            const action = {};
-            action.type = internalActionType;
-            action.defaultState = entry.defaultState;
-            action.partitionName = entry.partitionName;
-            _store.dispatch(action);
+            const action = {
+                type: internalActionType,
+                defaultState: entry.defaultState,
+                partitionName: entry.partitionName
+            };
+
             addPartitionInternal(entry);
+            internalDispatch(action);
         });
     } else {
         _partitionDefinitions = _partitionDefinitions.concat(partitionDefinitions);
@@ -1028,7 +1056,7 @@ function onStoreCreated(completionListener) {
 
 function uniqueKey(templateName) {
     if (!templateName)
-        templateName = 'causalityredux';
+        templateName = _uniqueKeyTemplate;
     let id = 0;
     let key = templateName;
     while (uniqueKeys[key]) {
@@ -1077,6 +1105,29 @@ const shallowCopyStorePartitions = () => {
     return storeCopy;
 };
 
+const reduxReducer = (combineReducersFunction, state, action) => {
+    if (action[_causalityreduxAction])
+        return generalReducer(state, action);
+    return merge({}, state, combineReducersFunction(state, action));
+};
+
+const addReducers = reducers => {
+    if (!_reduxStore)
+        error('setReduxStore must be called before calling addReducers.');
+    _reduxReducers = merge({}, _reduxReducers, reducers);
+    const crReducer = (state, action) => reduxReducer(combineReducers(_reduxReducers), state, action);
+    _reduxStore.replaceReducer(crReducer);
+};
+
+const setReduxStore = (store, reducersObject, hydrate, options) => {
+    _reduxStore = store;
+    if (typeof reducersObject === undefined)
+        error('Invalid reducers object.');   
+    addReducers(reducersObject);
+    const crStore = createStore([], hydrate, undefined, options);
+    return crStore;
+};
+
 const CausalityRedux = {
     createStore,
     addPartitions,
@@ -1096,6 +1147,9 @@ const CausalityRedux = {
     getModuleData,
     copyState,
     shallowCopyStorePartitions,
+    setReduxStore,
+    addReducers,
+    combineReducers,
     get store() {
         return _store;
     },
@@ -1119,6 +1173,9 @@ const CausalityRedux = {
     },
     get storeHistoryKey() {
         return _storeHistoryKey;
+    },
+    get reducer() {
+        return generalReducer;
     }
 };
 
