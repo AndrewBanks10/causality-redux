@@ -13,7 +13,7 @@ const buildEntryJs = 'linkcode.js';
 // The key item is the library name and the second is how you will refer to it in
 // your code.
 const externalsLib = {
-    'redux': 'Redux'
+    'redux': 'redux'
 };
 
 /*

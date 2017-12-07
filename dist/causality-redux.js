@@ -2114,7 +2114,7 @@ process.umask = function() { return 0; };
 /* 12 */
 /***/ (function(module, exports) {
 
-module.exports = Redux;
+module.exports = redux;
 
 /***/ })
 /******/ ]);
