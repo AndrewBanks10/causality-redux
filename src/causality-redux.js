@@ -974,11 +974,46 @@ function addPartitions(partitionDefinitions) {
             error('Invalid partition name.');      
     });
 
+    // This is fot hot reloading.
+    // We want to include new definitions in defaultState and new controller function definitions.
+    const existingPartitionDefinitions = partitionDefinitions.filter(entry =>
+        typeof findPartition(entry.partitionName) !== undefinedString
+    );
+
     // Do not allow a partition with the same name as an existing partition.
     partitionDefinitions = partitionDefinitions.filter(entry =>
         typeof findPartition(entry.partitionName) === undefinedString
     );
     if (_store !== null) {
+        // Hot reload.
+        // Handle any new keys defined in defaultState
+        // Handle any new controll functions also.
+        existingPartitionDefinitions.forEach(entry => {
+            // Handle new controller functions.
+            const p = findPartition(entry.partitionName);
+            if (!shallowEqual(p.controllerFunctions, entry.controllerFunctions)) {
+                p.controllerFunctions = entry.controllerFunctions;
+                buildStateEntryChangersAndReducers(p);
+                getKeys(p.changers).forEach(o => {
+                    _store[p.partitionName][o] = internalPartitionChanger(_store, p, o, makeReducerName(o));
+                });
+            } 
+            const newObj = {};
+            // New keys
+            getKeys(entry.defaultState).forEach(key => {
+                // Found a newly defined key in entry.defaultState
+                if (typeof _defaultState[entry.partitionName][key] === undefinedString) {
+                    const val = entry.defaultState[key];
+                    p.defaultState[key] = val;
+                    _defaultState[entry.partitionName][key] = val;
+                    newObj[key] = val;
+                }
+            });
+            // Add the news keys and their initial values to the store
+            if (getKeys(newObj).length > 0) {
+                executeSetState(entry.partitionName, newObj, true);
+            }
+        });
         partitionDefinitions.forEach(entry => {
             _defaultState[entry.partitionName] = shallowCopy(entry.defaultState);
             const action = {
@@ -1128,8 +1163,29 @@ const setReduxStore = (store, reducersObject, hydrate, options) => {
     return crStore;
 };
 
+const createGlobalStore = defaultState => {
+    const store = createStore({ partitionName: _globalDataKey, defaultState });
+    const globalStore = store[_globalDataKey];
+    
+    // globalPartitionState - Access and set individual key values in the global store.
+    // globalSetState = Set multiple key values in the global store.
+    // globalGetState - Get global store object.
+    // globalSubscribe - Subscribe to changes to key values in the global store.
+    // globalSubscribe(listener: function, globalStoreKeys = [], listenerName = '')
+    // If globalStoreKeys == [] or undefined, listen to all keys in the global partition.
+
+    return {
+        globalStore,
+        globalPartitionState: globalStore.partitionState,
+        globalSetState: globalStore.setState,
+        globalGetState: globalStore.getState,
+        globalSubscribe: globalStore.subscribe
+    };
+};
+
 const CausalityRedux = {
     createStore,
+    createGlobalStore,
     addPartitions,
     addPlugins,
     subscribe,
@@ -1176,6 +1232,9 @@ const CausalityRedux = {
     },
     get reducer() {
         return generalReducer;
+    },
+    get globalStore() {
+        return _store[_globalDataKey];
     }
 };
 

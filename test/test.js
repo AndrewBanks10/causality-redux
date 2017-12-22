@@ -1,13 +1,16 @@
+/*eslint no-console: 0*/
 //
 // Handle mocha testing.
 //
 const assert = require('assert');
 const isEqual = require('lodash/isEqual');
 const merge = require('lodash/merge');
+import { createStore as reduxCreateStore } from 'redux';
 
+let testRedux = false;
 let CausalityRedux;
 // Use the source when testing with the debugger. This is "Debug Mocha Tests" entry.
-if (process.env.NODE_ENV === 'debugTesting')
+if (process.env.NODE_ENV !== 'debugTesting')
     CausalityRedux = require('../src/causality-redux.js').default;
 // Test the minimized version. "Run Production Tests" entry.
 else if (process.env.NODE_ENV === 'production') {
@@ -18,6 +21,11 @@ else if (process.env.NODE_ENV === 'production') {
 // Test the lib version. "Run Mocha Tests" entry.
 } else
     CausalityRedux = require('../lib/causality-redux.js').default;
+
+if (process.env.WHICH_ENV === 'isredux') {
+    testRedux = true;
+    console.log('Testing redux co-existence integration.');
+}
 
 describe('CausalityRedux definition', function(){
   it('CausalityRedux should exist', function(){
@@ -111,16 +119,137 @@ const causalityChain = {
 // Test initial state
 //
 const hydrateState = {Demo:{isLess: false}, Counter: {counter: 1}, Comments: {items:[], author:'', text: 'xxxx', idToDelete:'zzz', idToChange:'', authorToChange:'', nextIndex:'', obj:{}}};
-     
-const store = CausalityRedux.createStore([reduxComments, reduxCounter], hydrateState);
+
+const ACTION1 = 'ACTION1';
+function action1(val) {
+    return {
+      type: ACTION1,
+      val
+    };
+}
+function reducer1(state = '', action) {
+    switch (action.type) {
+      case ACTION1:
+        return action.val;
+      default:
+        return state;
+    }
+}
+
+const ACTION2 = 'ACTION2';
+function action2(val) {
+    return {
+      type: ACTION2,
+      val
+    };
+}
+function reducer2(state = '', action) {
+    switch (action.type) {
+      case ACTION2:
+        return action.val;
+      default:
+        return state;
+    }
+}
+
+const ACTION3 = 'ACTION3';
+function action3(val) {
+    return {
+      type: ACTION3,
+      val
+    };
+}
+function reducer3(state = '', action) {
+    switch (action.type) {
+      case ACTION3:
+        return action.val;
+      default:
+        return state;
+    }
+}
+
+const reduxReducer = {
+    reduxStoreKey1: reducer1,
+    reduxStoreKey2: reducer2
+};
+
+let store;
+let reduxStore;
+if (testRedux) {
+    reduxStore = reduxCreateStore(CausalityRedux.combineReducers(reduxReducer), hydrateState); 
+    store = CausalityRedux.setReduxStore(reduxStore, reduxReducer, hydrateState);
+    CausalityRedux.addPartitions([reduxComments, reduxCounter]);
+} else {
+    store = CausalityRedux.createStore([reduxComments, reduxCounter], hydrateState);
+}
+
+function changeAction1(val) {
+    reduxStore.dispatch(action1(val));
+}
+
+function changeAction2(val) {
+    reduxStore.dispatch(action2(val));
+}
+
+function changeAction3(val) {
+    reduxStore.dispatch(action3(val));
+}
 
 CausalityRedux.addPartitions([causalityChain, reduxDemo]);
 
-describe('CausalityRedux.createStore called.', function(){
-  it('store should exist', function(){
-    assert(store !== 'undefined' && store !== null);
-  });
-});
+if (testRedux) {
+    const numIterations = 100;
+    describe('Test redux compatability.', function () {
+        it('The CausalityRedux.setReduxStore returned store should exist', function () {
+            assert(store !== 'undefined' && store !== null);
+        });
+        it('changeAction1 should work.', function () {
+            for (let i = 0; i < numIterations; ++i) {
+                const val = `action${parseInt(Math.random()*1000)}`;                
+                changeAction1(val);
+                assert(reduxStore.getState()['reduxStoreKey1'] === val);
+            }
+        });
+        it('changeAction2 should work.', function () {
+            for (let i = 0; i < numIterations; ++i) {
+                const val = `action${parseInt(Math.random()*1000)}`;                
+                changeAction2(val);
+                assert(reduxStore.getState()['reduxStoreKey2'] === val);
+            }
+        });
+        CausalityRedux.addReducers({ reduxStoreKey3: reducer3 });
+        it('changeAction3 should work which shows CausalityRedux.addReducers works.', function () {
+            for (let i = 0; i < numIterations; ++i) {
+                const val = `action${parseInt(Math.random()*1000)}`;                
+                changeAction3(val);
+                assert(reduxStore.getState()['reduxStoreKey3'] === val);
+            }
+        });
+        it('changeAction1 should work after addReducers.', function () {
+            for (let i = 0; i < numIterations; ++i) {
+                const val = `action${parseInt(Math.random()*1000)}`;                
+                changeAction1(val);
+                assert(reduxStore.getState()['reduxStoreKey1'] === val);
+            }
+        });
+        it('changeAction2 should work after addReducers.', function () {
+            for (let i = 0; i < numIterations; ++i) {
+                const val = `action${parseInt(Math.random()*1000)}`;                
+                changeAction2(val);
+                assert(reduxStore.getState()['reduxStoreKey2'] === val);
+            }
+        });
+    });
+      
+}
+
+if (!testRedux) {
+    describe('CausalityRedux.createStore called.', function () {
+        it('store should exist', function () {
+            assert(store !== 'undefined' && store !== null);
+        });
+    });
+}    
 
 const stateObj = {};
 const defaultState = CausalityRedux.defaultState;
@@ -133,8 +262,11 @@ Object.keys(hydrateState).forEach( key => {
 });
 const theState = CausalityRedux.reduxStore.getState();
 stateObj[CausalityRedux.storeVersionKey] = theState[CausalityRedux.storeVersionKey];
-const hydrateStateOK = isEqual(theState, stateObj);
-
+// Prove stateObj is a substate of theState
+let hydrateStateOK = true;
+Object.keys(stateObj).forEach( key => {
+    hydrateStateOK = hydrateStateOK && isEqual(theState[key], stateObj[key]);
+});
 
 describe('Test that initial state can be set.', function(){
   it('State should hydrated correctly.', function(){
@@ -582,8 +714,7 @@ describe('Testing unsubscribers', function(){
 // Plugin test
 //
 
-// Use a symbol so there is no clashing with other plugins.
-const incrementPluginId = Symbol('incrementPluginId');
+const incrementPluginId = 'incrementPluginId';
 
 let incrementValidateChangerArgumentsCalled = false;
 const incrementValidateChangerArguments = (...theirArgs) => {
@@ -731,16 +862,18 @@ describe('CausalityRedux storeVersionKey top level key', function () {
     });
 });
 
+const saveState = CausalityRedux.store.getState();
 describe('copyState test', function () {
-    it('Current state is not the defaultState.', function () {
-        const state = CausalityRedux.store.getState();
-        const isEq1 = isEqual(state, CausalityRedux.defaultState);
+    it('Current state is not saveState.', function () {
+        // Clear out the entire redux store
+        CausalityRedux.copyState({});
+        const isEq1 = isEqual(saveState, CausalityRedux.store.getState());
         assert(!isEq1);
     });
-    it('Current state is the defaultState after copyState.', function () {
-        CausalityRedux.copyState(CausalityRedux.defaultState);
+    it('Current state is the saveState after copyState.', function () {
+        CausalityRedux.copyState(saveState);
         const state = CausalityRedux.store.getState();
-        const isEq2 = isEqual(state, CausalityRedux.defaultState);
+        const isEq2 = isEqual(state, saveState);
         assert(isEq2);
     });
 });
