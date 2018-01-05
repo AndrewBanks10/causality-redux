@@ -158,9 +158,9 @@ var defineProxyGetSet = function defineProxyGetSet(obj, target, key) {
 
 };
 
-var simulateProxy = function simulateProxy(partitionName, target) {
+var simulateProxy = function simulateProxy(partitionName, target, defaultState) {
     var obj = {};
-    getKeys(target.getState()).forEach(function (key) {
+    getKeys(defaultState).forEach(function (key) {
         defineProxyGetSet(obj, target, key);
     });
     addProxyObject(partitionName, obj);
@@ -176,10 +176,10 @@ var partitionProxyHandler = {
     } };
 
 
-var getPartitionProxy = exports.getPartitionProxy = function getPartitionProxy(partitionName, target) {
+var getPartitionProxy = exports.getPartitionProxy = function getPartitionProxy(partitionName, target, defaultState) {
     if (proxyDefined())
     return new Proxy(target, partitionProxyHandler);
-    return simulateProxy(partitionName, target);
+    return simulateProxy(partitionName, target, defaultState);
 };
 
 //
@@ -600,7 +600,7 @@ var setupPartition = function setupPartition(store, stateEntry) {
     partitionStoreObject.subscribe = internalPartitionSubscriber(partitionName);
     partitionStoreObject.getState = internalPartitionGetState(store, partitionName);
     partitionStoreObject.setState = internalPartitionSetState(partitionName);
-    partitionStoreObject.partitionState = (0, _util.getPartitionProxy)(partitionName, store[partitionName]);
+    partitionStoreObject.partitionState = (0, _util.getPartitionProxy)(partitionName, store[partitionName], stateEntry.defaultState);
 };
 
 var handleControllerFunctions = function handleControllerFunctions(entry) {

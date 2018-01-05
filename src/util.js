@@ -85,9 +85,9 @@ const defineProxyGetSet = (obj, target, key) => {
     );
 };
 
-const simulateProxy = (partitionName, target) => {
+const simulateProxy = (partitionName, target, defaultState) => {
     const obj = {};
-    getKeys(target.getState()).forEach(key => {
+    getKeys(defaultState).forEach(key => {
         defineProxyGetSet(obj, target, key);
     });
     addProxyObject(partitionName, obj);
@@ -103,10 +103,10 @@ const partitionProxyHandler = {
     }
 };
 
-export const getPartitionProxy = (partitionName, target) => {
+export const getPartitionProxy = (partitionName, target, defaultState) => {
     if (proxyDefined())
         return new Proxy(target, partitionProxyHandler);
-    return simulateProxy(partitionName, target);
+    return simulateProxy(partitionName, target, defaultState);
 };
 
 //

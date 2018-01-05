@@ -321,7 +321,7 @@ const setupPartition = (store, stateEntry) => {
     partitionStoreObject.subscribe = internalPartitionSubscriber(partitionName);
     partitionStoreObject.getState = internalPartitionGetState(store, partitionName);
     partitionStoreObject.setState = internalPartitionSetState(partitionName);
-    partitionStoreObject.partitionState = getPartitionProxy(partitionName, store[partitionName]);
+    partitionStoreObject.partitionState = getPartitionProxy(partitionName, store[partitionName], stateEntry.defaultState);
 };
 
 const handleControllerFunctions = (entry) => {
