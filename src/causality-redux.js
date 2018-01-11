@@ -41,7 +41,8 @@ const stateEntryValidKeys = [
     'changers',
     'reducers',
     'changerDefinitions',
-    'controllerFunctions'
+    'controllerFunctions',
+    'uiServiceFunctions'
 ];
 
 const stateEntryRequiredKeys = [

@@ -320,7 +320,8 @@ var stateEntryValidKeys = [
 'changers',
 'reducers',
 'changerDefinitions',
-'controllerFunctions'];
+'controllerFunctions',
+'uiServiceFunctions'];
 
 
 var stateEntryRequiredKeys = [
