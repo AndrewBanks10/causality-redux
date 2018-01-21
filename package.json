@@ -1,6 +1,6 @@
 {
   "name": "causality-redux",
-  "version": "2.1.23",
+  "version": "2.2.0",
   "description": "A causality based extension of redux",
   "main": "index.js",
   "scripts": {
@@ -63,8 +63,8 @@
   },
   "dependencies": {
     "object-assign": "^4.1.1",
-    "shallow-clone": "^1.0.0",
-    "redux": "^3.6.0"
+    "shallow-clone": "^2.0.2",
+    "redux": "^3.7.2"
   },
   "config": {
     "host": "localhost",
