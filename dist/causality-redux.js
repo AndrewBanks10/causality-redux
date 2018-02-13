@@ -521,6 +521,7 @@ var _reduxReducers = {};
 var _onStateChangeListeners = [];
 var _onGlobalStateChangeListeners = [];
 var _onListenerListeners = [];
+var _onAddParitionListeners = [];
 var _startState = null;
 var _subscribers = [];
 var uniqueKeys = {};
@@ -808,6 +809,13 @@ function setOptions() {var options = arguments.length > 0 && arguments[0] !== un
     }
     _onListenerListeners.push(options.onListener);
   }
+
+  if (options.onAddPartition) {
+    if (typeof options.onAddPartition !== 'function') {
+      (0, _util.error)('options.onListener must be a function.');
+    }
+    _onAddParitionListeners.push(options.onAddPartition);
+  }
 }
 
 //
@@ -928,7 +936,7 @@ function init(partitionDefinitions, preloadedState, enhancer) {var options = arg
             // This listener wants to be called only when specific entries in the partition are changed.
           } else {
             var areEqual = true;
-            // Determine what entries in the partition changed.
+            // Determine whether entries in the partition changed.
             if (_typeof(item.prevState) === undefinedString) {
               item.stateEntries.forEach(function (se) {
                 areEqual = areEqual && partitionState[se] === _startState[o][se];
@@ -1097,6 +1105,7 @@ function addPartitions(partitionDefinitions) {
 
       addPartitionInternal(entry);
       internalDispatch(action);
+      _onAddParitionListeners.forEach(function (func) {return func(entry.partitionName);});
     });
   } else {
     _partitionDefinitions = _partitionDefinitions.concat(partitionDefinitions);

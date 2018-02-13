@@ -1,6 +1,6 @@
 {
   "name": "causality-redux",
-  "version": "2.2.0",
+  "version": "2.2.1",
   "description": "A causality based extension of redux",
   "main": "index.js",
   "scripts": {

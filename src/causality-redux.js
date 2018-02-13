@@ -42,6 +42,7 @@ let _reduxReducers = {}
 const _onStateChangeListeners = []
 const _onGlobalStateChangeListeners = []
 const _onListenerListeners = []
+const _onAddParitionListeners = []
 let _startState = null
 let _subscribers = []
 const uniqueKeys = {}
@@ -329,6 +330,13 @@ function setOptions (options = {}) {
     }
     _onListenerListeners.push(options.onListener)
   }
+
+  if (options.onAddPartition) {
+    if (typeof options.onAddPartition !== 'function') {
+      error('options.onListener must be a function.')
+    }
+    _onAddParitionListeners.push(options.onAddPartition)
+  }
 }
 
 //
@@ -449,7 +457,7 @@ function init (partitionDefinitions, preloadedState, enhancer, options = {}) {
             // This listener wants to be called only when specific entries in the partition are changed.
           } else {
             let areEqual = true
-            // Determine what entries in the partition changed.
+            // Determine whether entries in the partition changed.
             if (typeof item.prevState === undefinedString) {
               item.stateEntries.forEach(se => {
                 areEqual = areEqual && partitionState[se] === _startState[o][se]
@@ -618,6 +626,7 @@ function addPartitions (partitionDefinitions) {
 
       addPartitionInternal(entry)
       internalDispatch(action)
+      _onAddParitionListeners.forEach(func => func(entry.partitionName))
     })
   } else {
     _partitionDefinitions = _partitionDefinitions.concat(partitionDefinitions)

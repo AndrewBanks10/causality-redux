@@ -46,7 +46,7 @@ const reduxComments = {
   partitionName: COMMENTS_STATE,
   // No type checking of obj
   defaultState: {items: [], author: '', text: '', idToDelete: '', idToChange: '', authorToChange: '', nextIndex: 0, obj: {}},
-  controllerFunctions: {
+  uiServiceFunctions: {
     'onResetAuthorToDefault': () => {
       commentsPartitionState.author = ''
     },
